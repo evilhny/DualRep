@@ -529,7 +529,7 @@ app.get("/{*path}", (req, res) => {
   res.sendFile(path.join(clientDistPath, "index.html"));
 });
 
-app.listen(PORT, () => {
-  console.log(`DualRep running at http://localhost:${PORT}`);
+app.listen(PORT, "127.0.0.1", () => {
+  console.log(`DualRep running at http://127.0.0.1:${PORT}`);
   startDiscordReminders();
 });
