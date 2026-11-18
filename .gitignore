@@ -1,0 +1,36 @@
+﻿# Dependencies
+**/node_modules/
+
+# Build output
+client/dist/
+**/dist/
+**/build/
+
+# Environment variables and secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# SQLite databases and backups
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+backups/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local code backups
+server/index - Backup.js
