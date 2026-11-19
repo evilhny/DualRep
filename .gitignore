@@ -5,6 +5,7 @@
 client/dist/
 **/dist/
 **/build/
+client/dev-dist/
 
 # Environment variables and secrets
 .env
@@ -34,3 +35,4 @@ Thumbs.db
 
 # Local code backups
 server/index - Backup.js
+

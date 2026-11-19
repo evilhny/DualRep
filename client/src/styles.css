@@ -1447,3 +1447,144 @@ input:focus-visible {
   width: 28px;
   height: 28px;
 }
+
+
+/* =========================
+   Authentication
+========================= */
+
+.panel-enter {
+  animation: panelEnter 480ms cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.auth-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 13px 15px;
+
+  border: 1px solid rgba(255, 223, 185, 0.14);
+  border-radius: 12px;
+
+  background: #141414;
+  color: #ffdfb9;
+  font-size: 0.95rem;
+
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.auth-input::placeholder {
+  color: rgba(255, 223, 185, 0.4);
+}
+
+.auth-input:focus {
+  border-color: #a4193d;
+  box-shadow: 0 0 0 3px rgba(164, 25, 61, 0.12);
+}
+
+.auth-form button {
+  width: 100%;
+  min-height: 48px;
+  padding: 13px 16px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: #a4193d;
+  color: #ffdfb9;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition: filter 180ms ease, transform 160ms ease;
+}
+
+.auth-form button:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.auth-form button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.auth-form .auth-secondary {
+  min-height: 40px;
+  padding: 8px;
+
+  background: transparent;
+  color: rgba(255, 223, 185, 0.65);
+  font-weight: 500;
+}
+
+.auth-form .auth-secondary:hover {
+  color: #ffdfb9;
+  background: rgba(255, 223, 185, 0.05);
+}
+
+.auth-error {
+  margin: 0;
+  color: #ff8fa3;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+/* =========================
+   Dashboard account / logout
+========================= */
+
+.dashboard-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logout-button {
+  padding: 7px 12px;
+
+  border: 1px solid rgba(255, 223, 185, 0.16);
+  border-radius: 9px;
+
+  background: transparent;
+  color: rgba(255, 223, 185, 0.8);
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  border-color: #a4193d;
+  background: rgba(164, 25, 61, 0.12);
+  color: #ffdfb9;
+}
+
+@media (max-width: 400px) {
+  .user-picker {
+    padding: 32px 20px;
+  }
+
+  .dashboard-account {
+    gap: 8px;
+    font-size: 0.7rem;
+  }
+
+  .logout-button {
+    padding: 7px 9px;
+  }
+}
+
+
+.logo-image {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin: 0 auto 12px;
+}

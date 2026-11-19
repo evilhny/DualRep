@@ -12,6 +12,7 @@ import MonthView from "./MonthView";
 
 interface DashboardProps {
   user: string;
+  onLogout: () => void;
 }
 
 const pushupTypes: PushupType[] = [
@@ -21,7 +22,7 @@ const pushupTypes: PushupType[] = [
   "Clap",
 ];
 
-function Dashboard({ user }: DashboardProps) {
+function Dashboard({ user, onLogout }: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
   const [isLogging, setIsLogging] = useState(false);
@@ -54,7 +55,7 @@ function Dashboard({ user }: DashboardProps) {
 
   async function handleSaveSet(sets: PushupSet[]) {
     try {
-      await logPushupSets(user, sets);
+      await logPushupSets(sets);
       await loadDashboard();
       setMonthRefreshKey((current) => current + 1);
       setIsLogging(false);
@@ -152,9 +153,20 @@ function Dashboard({ user }: DashboardProps) {
         {/* Header */}
         <header className="dashboard-header">
           <p className="eyebrow">DUALREP</p>
-          <span className="dashboard-account">
-            Signed in as <strong>{user}</strong>
-          </span>
+
+          <div className="dashboard-account">
+            <span>
+              Signed in as <strong>{user}</strong>
+            </span>
+
+            <button
+              type="button"
+              className="logout-button"
+              onClick={onLogout}
+            >
+              Logout
+            </button>
+          </div>
         </header>
 
         <div className="dashboard-heading">

@@ -3,6 +3,16 @@ require("dotenv").config();
 
 const { Agent, setGlobalDispatcher } = require("undici");
 
+const {
+  hashPassword,
+  verifyPassword,
+  createSession,
+  setSessionCookie,
+  clearSessionCookie,
+  requireAuth,
+  destroySession,
+} = require("./auth");
+
 setGlobalDispatcher(
   new Agent({
     connect: {
@@ -18,6 +28,9 @@ const path = require("path");
 const db = require("./database");
 
 const app = express();
+
+app.set("trust proxy", 1);
+
 const PORT = 3001;
 
 // In production, the React app is built into client/dist.
@@ -237,18 +250,136 @@ function startDiscordReminders() {
    API ROUTES
 ========================= */
 
-// Log one or more push-up sets.
-app.post("/api/sets", (req, res) => {
-  const { user, sets } = req.body;
+// Normalize usernames to the two permitted accounts.
+function normalizeUsername(username) {
+  if (typeof username !== "string") return null;
 
-  const validUsers = ["Damian", "Icefox"];
-  const validTypes = ["Regular", "Diamond", "Wide", "Clap"];
+  const normalized = username.trim().toLowerCase();
 
-  if (!validUsers.includes(user)) {
+  if (normalized === "damian") return "Damian";
+  if (normalized === "icefox") return "Icefox";
+
+  return null;
+}
+
+// Check whether a username already has a password configured.
+app.post("/api/auth/status", (req, res) => {
+  const username = normalizeUsername(req.body.username);
+
+  if (!username) {
     return res.status(400).json({
-      error: "User must be Damian or Icefox.",
+      error: "Username must be damian or icefox.",
     });
   }
+
+  const user = db.prepare(`
+    SELECT id
+    FROM users
+    WHERE username = ?
+  `).get(username);
+
+  res.json({
+    setupRequired: !user,
+  });
+});
+
+// First-time password setup.
+app.post("/api/auth/setup", (req, res) => {
+  const username = normalizeUsername(req.body.username);
+  const { password } = req.body;
+
+  if (!username) {
+    return res.status(400).json({
+      error: "Username must be damian or icefox.",
+    });
+  }
+
+  if (typeof password !== "string" || password.length < 8) {
+    return res.status(400).json({
+      error: "Password must be at least 8 characters long.",
+    });
+  }
+
+  const result = db.prepare(`
+    INSERT OR IGNORE INTO users (username, password_hash)
+    VALUES (?, ?)
+  `).run(username, hashPassword(password));
+
+  if (result.changes === 0) {
+    return res.status(409).json({
+      error: "This username already has a password. Please log in.",
+    });
+  }
+
+  const token = createSession(result.lastInsertRowid);
+  setSessionCookie(res, token);
+
+  return res.status(201).json({
+    user: username,
+  });
+});
+
+// Username and password login.
+app.post("/api/auth/login", (req, res) => {
+  const username = normalizeUsername(req.body.username);
+  const { password } = req.body;
+
+  if (!username || typeof password !== "string") {
+    return res.status(400).json({
+      error: "Enter a valid username and password.",
+    });
+  }
+
+  const user = db.prepare(`
+    SELECT id, username, password_hash
+    FROM users
+    WHERE username = ?
+  `).get(username);
+
+  // No password has been configured for this username yet.
+  if (!user) {
+    return res.status(404).json({
+      setupRequired: true,
+      error: "No password has been set for this username.",
+    });
+  }
+
+  if (!verifyPassword(password, user.password_hash)) {
+    return res.status(401).json({
+      error: "Incorrect username or password.",
+    });
+  }
+
+  const token = createSession(user.id);
+  setSessionCookie(res, token);
+
+  return res.json({
+    user: user.username,
+  });
+});
+
+// Restore the currently authenticated user.
+app.get("/api/auth/me", requireAuth, (req, res) => {
+  res.json({
+    user: req.user.username,
+  });
+});
+
+// Explicit logout.
+app.post("/api/auth/logout", (req, res) => {
+  destroySession(req);
+  clearSessionCookie(res);
+
+  res.json({
+    success: true,
+  });
+});
+
+// Log one or more push-up sets.
+app.post("/api/sets", requireAuth, (req, res) => {
+  const user = req.user.username;
+  const { sets } = req.body;
+  const validTypes = ["Regular", "Diamond", "Wide", "Clap"];
 
   if (!Array.isArray(sets) || sets.length === 0) {
     return res.status(400).json({
@@ -298,7 +429,7 @@ app.post("/api/sets", (req, res) => {
 });
 
 // Get dashboard data for both users.
-app.get("/api/dashboard", (req, res) => {
+app.get("/api/dashboard", requireAuth, (req, res) => {
   const users = ["Damian", "Icefox"];
   const pushupTypes = ["Regular", "Diamond", "Wide", "Clap"];
 
@@ -459,7 +590,7 @@ app.get("/api/dashboard", (req, res) => {
 });
 
 // Get daily push-up totals for both users in a specific month.
-app.get("/api/month", (req, res) => {
+app.get("/api/month", requireAuth, (req, res) => {
   const year = Number(req.query.year);
   const month = Number(req.query.month);
 
