@@ -13,6 +13,7 @@ import MonthView from "./MonthView";
 interface DashboardProps {
   user: string;
   onLogout: () => void;
+  initialData: DashboardData | null;
 }
 
 const pushupTypes: PushupType[] = [
@@ -22,8 +23,12 @@ const pushupTypes: PushupType[] = [
   "Clap",
 ];
 
-function Dashboard({ user, onLogout }: DashboardProps) {
-  const [data, setData] = useState<DashboardData | null>(null);
+function Dashboard({
+  user,
+  onLogout,
+  initialData,
+}: DashboardProps) {
+  const [data, setData] = useState<DashboardData | null>(initialData);
   const [error, setError] = useState("");
   const [isLogging, setIsLogging] = useState(false);
   const [monthRefreshKey, setMonthRefreshKey] = useState(0);
@@ -50,8 +55,10 @@ function Dashboard({ user, onLogout }: DashboardProps) {
   }, []);
 
   useEffect(() => {
+  if (!data) {
     loadDashboard();
-  }, [loadDashboard]);
+  }
+}, [loadDashboard, data]);
 
   async function handleSaveSet(sets: PushupSet[]) {
     try {
