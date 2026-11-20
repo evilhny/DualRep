@@ -105,6 +105,10 @@ h2 {
   align-items: flex-start;
 }
 
+.dashboard-page:has(.loading-spinner) {
+  align-items: center;
+}
+
 .dashboard {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr);
