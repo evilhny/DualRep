@@ -39,6 +39,10 @@ function Dashboard({
     Icefox: false,
     Damian: false,
   });
+  const [visibleSevenDayUsers, setVisibleSevenDayUsers] = useState({
+    Icefox: true,
+    Damian: true,
+  });
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -130,18 +134,26 @@ function Dashboard({
 
   const maxDailyReps = Math.max(
     1,
-    ...last7Days.flatMap((day) => [day.Icefox, day.Damian])
+    ...last7Days.flatMap((day) => [
+      ...(visibleSevenDayUsers.Icefox ? [day.Icefox] : []),
+      ...(visibleSevenDayUsers.Damian ? [day.Damian] : []),
+    ])
   );
 
-  const icefoxTotal = last7Days.reduce(
-    (total, day) => total + day.Icefox,
-    0
-  );
+  const icefoxTotal = visibleSevenDayUsers.Icefox
+    ? last7Days.reduce((total, day) => total + day.Icefox, 0)
+    : 0;
 
-  const damianTotal = last7Days.reduce(
-    (total, day) => total + day.Damian,
-    0
-  );
+  const damianTotal = visibleSevenDayUsers.Damian
+    ? last7Days.reduce((total, day) => total + day.Damian, 0)
+    : 0;
+
+  function toggleSevenDayUser(userName: "Icefox" | "Damian") {
+    setVisibleSevenDayUsers((current) => ({
+      ...current,
+      [userName]: !current[userName],
+    }));
+  }
 
   function formatDay(date: string) {
     const parsedDate = new Date(`${date}T00:00:00`);
@@ -159,7 +171,15 @@ function Dashboard({
       <div className="dashboard">
         {/* Header */}
         <header className="dashboard-header">
-          <p className="eyebrow">DUALREP</p>
+          <div className="dashboard-brand" aria-label="DualRep">
+            <img
+              src="/favicon.svg"
+              alt=""
+              aria-hidden="true"
+              className="dashboard-brand-logo"
+            />
+            <span className="dashboard-brand-text">DUALREP</span>
+          </div>
 
           <div className="dashboard-account">
             <span>
@@ -285,22 +305,68 @@ function Dashboard({
             </div>
 
             <div className="seven-day-legend">
-              <span className="legend-item">
-                <i className="legend-dot icefox-dot" />
+              <button
+                type="button"
+                className="legend-item"
+                onClick={() => toggleSevenDayUser("Icefox")}
+                aria-pressed={visibleSevenDayUsers.Icefox}
+                style={{
+                  padding: "7px 11px",
+                  border: `1px solid ${
+                    visibleSevenDayUsers.Icefox
+                      ? "#a4193d"
+                      : "rgba(255, 223, 185, 0.2)"
+                  }`,
+                  borderRadius: "999px",
+                  background: visibleSevenDayUsers.Icefox
+                    ? "#a4193d"
+                    : "rgba(255, 223, 185, 0.06)",
+                  color: visibleSevenDayUsers.Icefox
+                    ? "#ffffff"
+                    : "rgba(255, 223, 185, 0.45)",
+                  cursor: "pointer",
+                  opacity: visibleSevenDayUsers.Icefox ? 1 : 0.65,
+                  transition: "all 180ms ease",
+                }}
+              >
                 Icefox
-              </span>
+              </button>
 
-              <span className="legend-item">
-                <i className="legend-dot damian-dot" />
+              <button
+                type="button"
+                className="legend-item"
+                onClick={() => toggleSevenDayUser("Damian")}
+                aria-pressed={visibleSevenDayUsers.Damian}
+                style={{
+                  padding: "7px 11px",
+                  border: `1px solid ${
+                    visibleSevenDayUsers.Damian
+                      ? "#ffdfb9"
+                      : "rgba(255, 223, 185, 0.2)"
+                  }`,
+                  borderRadius: "999px",
+                  background: visibleSevenDayUsers.Damian
+                    ? "#ffdfb9"
+                    : "rgba(255, 223, 185, 0.06)",
+                  color: visibleSevenDayUsers.Damian
+                    ? "#100d1d"
+                    : "rgba(255, 223, 185, 0.45)",
+                  cursor: "pointer",
+                  opacity: visibleSevenDayUsers.Damian ? 1 : 0.65,
+                  transition: "all 180ms ease",
+                }}
+              >
                 Damian
-              </span>
+              </button>
             </div>
           </div>
 
           <div
             className="seven-day-chart"
             role="img"
-            aria-label="Daily push-up reps for Icefox and Damian over the last seven days"
+            aria-label={`Daily push-up reps over the last seven days. Icefox ${
+              visibleSevenDayUsers.Icefox ? "visible" : "hidden"
+            }, Damian ${visibleSevenDayUsers.Damian ? "visible" : "hidden"}.`}
           >
             {last7Days.map((day) => {
               const { weekday, day: dayNumber } = formatDay(day.date);
@@ -314,17 +380,21 @@ function Dashboard({
               return (
                 <div className="seven-day-column" key={day.date}>
                   <div className="seven-day-bars">
-                    <div
-                      className="seven-day-bar icefox-bar"
-                      style={{ height: `${icefoxHeight}%` }}
-                      title={`Icefox: ${day.Icefox} reps`}
-                    />
+                    {visibleSevenDayUsers.Icefox && (
+                      <div
+                        className="seven-day-bar icefox-bar"
+                        style={{ height: `${icefoxHeight}%` }}
+                        title={`Icefox: ${day.Icefox} reps`}
+                      />
+                    )}
 
-                    <div
-                      className="seven-day-bar damian-bar"
-                      style={{ height: `${damianHeight}%` }}
-                      title={`Damian: ${day.Damian} reps`}
-                    />
+                    {visibleSevenDayUsers.Damian && (
+                      <div
+                        className="seven-day-bar damian-bar"
+                        style={{ height: `${damianHeight}%` }}
+                        title={`Damian: ${day.Damian} reps`}
+                      />
+                    )}
                   </div>
 
                   <span className="seven-day-label">
@@ -339,15 +409,19 @@ function Dashboard({
             <span className="chart-caption">Reps per day</span>
 
             <div className="seven-day-totals">
-              <span className="seven-day-total">
-                <i className="legend-dot icefox-dot" />
-                Icefox <strong>{icefoxTotal}</strong>
-              </span>
+              {visibleSevenDayUsers.Icefox && (
+                <span className="seven-day-total">
+                  <i className="legend-dot icefox-dot" />
+                  Icefox <strong>{icefoxTotal}</strong>
+                </span>
+              )}
 
-              <span className="seven-day-total">
-                <i className="legend-dot damian-dot" />
-                Damian <strong>{damianTotal}</strong>
-              </span>
+              {visibleSevenDayUsers.Damian && (
+                <span className="seven-day-total">
+                  <i className="legend-dot damian-dot" />
+                  Damian <strong>{damianTotal}</strong>
+                </span>
+              )}
             </div>
           </div>
         </section>

@@ -1,11 +1,41 @@
+
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#100D1D" />
     <title>DualRep</title>
+
+    <!-- Apply the dark background before React and CSS load -->
+    <style>
+      html,
+      body,
+      #root {
+        min-width: 320px;
+        min-height: 100%;
+        margin: 0;
+        background: #100D1D;
+      }
+
+      body {
+        min-height: 100vh;
+        background: linear-gradient(
+          135deg,
+          #100D1D 0%,
+          #17111D 55%,
+          #21101A 100%
+        );
+        background-attachment: fixed;
+      }
+
+      #root {
+        min-height: 100vh;
+      }
+    </style>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

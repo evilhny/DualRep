@@ -111,17 +111,23 @@ h2 {
 
 .dashboard {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 16px;
   width: 100%;
-  max-width: 850px;
+  max-width: 1100px;
   padding: 24px 0;
 }
 
 .dashboard-header,
-.dashboard-heading,
-.month-view {
+.dashboard-heading {
   grid-column: 1 / -1;
+}
+
+.month-view {
+  grid-column: 2;
+  grid-row: 3 / span 3;
+  align-self: stretch;
+  margin-top: 0;
 }
 
 .dashboard-header {
@@ -129,6 +135,28 @@ h2 {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0;
+}
+
+.dashboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-brand-logo {
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.dashboard-brand-text {
+  color: #a4193d;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
 }
 
 .dashboard-account {
@@ -614,7 +642,7 @@ h2 {
 ========================= */
 
 .month-view {
-  margin-top: 32px;
+  margin-top: 0;
   padding: 21px 22px 23px;
   border: 1px solid rgba(255, 223, 185, 0.12);
   border-radius: 18px;
@@ -780,18 +808,23 @@ h2 {
    Mobile adjustments
 ========================= */
 
-@media (max-width: 620px) {
+@media (max-width: 760px) {
   .dashboard {
     grid-template-columns: minmax(0, 1fr);
-    max-width: 500px;
+    max-width: 600px;
     gap: 12px;
     padding: 16px 0;
   }
 
   .dashboard-header,
   .dashboard-heading,
-  .month-view {
+  .month-view,
+  .seven-day-card {
     grid-column: 1;
+  }
+
+  .month-view {
+    grid-row: auto;
   }
 
   .dashboard-heading {
@@ -1258,7 +1291,7 @@ input:focus-visible {
 ========================= */
 
 .seven-day-card {
-  grid-column: 1 / -1;
+  grid-column: 1;
 }
 
 .seven-day-header {

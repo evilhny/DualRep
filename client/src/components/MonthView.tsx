@@ -86,7 +86,9 @@ function MonthView({ refreshKey }: MonthViewProps) {
           ‹
         </button>
 
-        <h2>{monthName} {year}</h2>
+        <h2>
+          {monthName} {year}
+        </h2>
 
         <button
           type="button"
@@ -115,92 +117,68 @@ function MonthView({ refreshKey }: MonthViewProps) {
         ))}
       </div>
 
-      {error ? (
+      {error && (
         <p className="calendar-message" role="alert">
           {error}
         </p>
-      ) : !data ? (
-        <div
-          className="calendar-message loading-spinner"
-          aria-live="polite"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-label="Loading calendar"
-            role="img"
-          >
-            <path
-              fill="#FFDFB9"
-              d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z"
-            >
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                dur="0.75s"
-                values="0 12 12;360 12 12"
-                repeatCount="indefinite"
-              />
-            </path>
-          </svg>
-        </div>
-      ) : (
-        <div
-          className={`calendar-grid slide-${direction}`}
-          key={animationKey}
-        >
-          {calendarCells.map((day, index) => {
-            const animationStyle = {
-              "--cell-delay": `${Math.min(index, 41) * 18}ms`,
-            } as CSSProperties;
+      )}
 
-            if (day === null) {
-              return (
-                <div
-                  className="calendar-day calendar-empty"
-                  key={`empty-${index}`}
-                  style={animationStyle}
-                  aria-hidden="true"
-                />
-              );
-            }
+      <div
+        className={`calendar-grid slide-${direction}`}
+        key={animationKey}
+        aria-busy={!data && !error}
+      >
+        {calendarCells.map((day, index) => {
+          const animationStyle = {
+            "--cell-delay": `${Math.min(index, 41) * 18}ms`,
+          } as CSSProperties;
 
-            const dateKey = getDateKey(day);
-            const icefoxTotal = data.data.Icefox?.[dateKey] ?? 0;
-            const damianTotal = data.data.Damian?.[dateKey] ?? 0;
-
-            const isToday =
-              today.getFullYear() === year &&
-              today.getMonth() + 1 === month &&
-              today.getDate() === day;
-
+          if (day === null) {
             return (
               <div
-                className={[
-                  "calendar-day",
-                  icefoxTotal > 0 || damianTotal > 0 ? "active" : "",
-                  isToday ? "today" : "",
-                ].join(" ")}
-                key={day}
+                className="calendar-day calendar-empty"
+                key={`empty-${index}`}
                 style={animationStyle}
-                title={`Icefox: ${icefoxTotal} reps | Damian: ${damianTotal} reps`}
-              >
-                <span className="day-number">{day}</span>
-
-                <div className="activity-indicators">
-                  {icefoxTotal > 0 && (
-                    <span className="activity-dot icefox-dot" />
-                  )}
-
-                  {damianTotal > 0 && (
-                    <span className="activity-dot damian-dot" />
-                  )}
-                </div>
-              </div>
+                aria-hidden="true"
+              />
             );
-          })}
-        </div>
-      )}
+          }
+
+          const dateKey = getDateKey(day);
+          const icefoxTotal = data?.data.Icefox?.[dateKey] ?? 0;
+          const damianTotal = data?.data.Damian?.[dateKey] ?? 0;
+
+          const isToday =
+            today.getFullYear() === year &&
+            today.getMonth() + 1 === month &&
+            today.getDate() === day;
+
+          return (
+            <div
+              className={[
+                "calendar-day",
+                icefoxTotal > 0 || damianTotal > 0 ? "active" : "",
+                isToday ? "today" : "",
+              ].join(" ")}
+              key={day}
+              style={animationStyle}
+              title={`Icefox: ${icefoxTotal} reps | Damian: ${damianTotal} reps`}
+            >
+              <span className="day-number">{day}</span>
+
+              <div className="activity-indicators">
+                {icefoxTotal > 0 && (
+                  <span className="activity-dot icefox-dot" />
+                )}
+
+                {damianTotal > 0 && (
+                  <span className="activity-dot damian-dot" />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
