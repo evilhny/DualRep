@@ -1,5 +1,6 @@
 
 import { useCallback, useEffect, useState } from "react";
+import { LogOut, Settings } from "lucide-react";
 import {
   getDashboard,
   logPushupSets,
@@ -193,16 +194,20 @@ function Dashboard({
               type="button"
               className="settings-open-button"
               onClick={() => setIsSettingsOpen(true)}
+              aria-label="Settings"
+              title="Settings"
             >
-              Settings
+              <Settings size={20} strokeWidth={1.8} aria-hidden="true" />
             </button>
 
             <button
               type="button"
               className="logout-button"
               onClick={onLogout}
+              aria-label="Logout"
+              title="Logout"
             >
-              Logout
+              <LogOut size={20} strokeWidth={1.8} aria-hidden="true" />
             </button>
           </div>
         </header>

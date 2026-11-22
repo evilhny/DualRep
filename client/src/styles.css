@@ -760,3 +760,19 @@ button:focus-visible,input:focus-visible { outline:2px solid #c0184a; outline-of
   .settings-test-section { align-items: flex-start; flex-direction: column; }
   .settings-test-button { width: 100%; }
 }
+.settings-open-button,
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.settings-open-button svg,
+.logout-button svg {
+  width: 20px;
+  height: 20px;
+}
