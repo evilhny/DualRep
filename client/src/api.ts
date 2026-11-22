@@ -213,3 +213,60 @@ export async function getMonth(
 
   return response.json();
 }
+
+
+/* =========================
+   DISCORD NOTIFICATION SETTINGS
+========================= */
+
+export interface NotificationSettings {
+  reminderEnabled: boolean;
+  reminderTime: string;
+  reminderDays: number[];
+  partnerSetEnabled: boolean;
+}
+
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const response = await fetch("/api/notifications/settings", {
+    credentials: "same-origin",
+  });
+
+  if (!response.ok) {
+    throw new Error(await getError(response));
+  }
+
+  return response.json();
+}
+
+export async function saveNotificationSettings(
+  settings: NotificationSettings
+): Promise<NotificationSettings> {
+  const response = await fetch("/api/notifications/settings", {
+    method: "PUT",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getError(response));
+  }
+
+  return response.json();
+}
+
+export async function sendTestDiscordDm(): Promise<{
+  sent: boolean;
+  cooldownSeconds: number;
+}> {
+  const response = await fetch("/api/notifications/test", {
+    method: "POST",
+    credentials: "same-origin",
+  });
+
+  if (!response.ok) {
+    throw new Error(await getError(response));
+  }
+
+  return response.json();
+}

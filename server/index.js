@@ -45,25 +45,6 @@ app.use(express.json());
 
 const TIME_ZONE = "Asia/Kolkata";
 
-// Get current date and time in India.
-function getIndiaDateTimeParts() {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date());
-
-  return Object.fromEntries(
-    parts
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value])
-  );
-}
-
 function getIndiaDateString() {
   const parts = getIndiaDateTimeParts();
 
@@ -90,7 +71,7 @@ function getNextMonthDate(year, month) {
 }
 
 /* =========================
-   DISCORD DAILY REMINDERS
+   DISCORD NOTIFICATIONS
 ========================= */
 
 const DISCORD_USERS = {
@@ -103,36 +84,57 @@ const DISCORD_ENABLED = Boolean(
   Object.values(DISCORD_USERS).some((id) => id && id.trim())
 );
 
-const REMINDER_HOUR = 11;
-const REMINDER_MINUTE = 0;
-
 let discordClient = null;
 let reminderCheckRunning = false;
+const testDmInFlight = new Set();
+const testDmCooldowns = new Map();
+const TEST_DM_COOLDOWN_MS = 30_000;
 
-function hasReminderTimeArrived() {
-  const parts = getIndiaDateTimeParts();
+function getIndiaDateTimeParts() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
 
-  const hour = Number(parts.hour);
-  const minute = Number(parts.minute);
-
-  return (
-    hour > REMINDER_HOUR ||
-    (hour === REMINDER_HOUR && minute >= REMINDER_MINUTE)
+  return Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
   );
 }
 
-// Store reminder history in the existing SQLite database.
-db.exec(`
-  CREATE TABLE IF NOT EXISTS discord_reminders (
-    user TEXT NOT NULL CHECK(user IN ('Damian', 'Icefox')),
-    reminder_date TEXT NOT NULL,
-    sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user, reminder_date)
-  )
-`);
+function getIndiaWeekdayNumber(weekdayShort) {
+  const map = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  return map[weekdayShort] || 0;
+}
 
-// SQLite CURRENT_TIMESTAMP is UTC.
-// Convert stored timestamps to IST before comparing dates.
+function getNotificationSettings(user) {
+  const row = db.prepare(`
+    SELECT reminder_enabled, reminder_time, reminder_days,
+           partner_set_enabled
+    FROM notification_settings
+    WHERE user = ?
+  `).get(user);
+
+  if (!row) {
+    db.prepare("INSERT OR IGNORE INTO notification_settings (user) VALUES (?)").run(user);
+    return getNotificationSettings(user);
+  }
+
+  return {
+    reminderEnabled: Boolean(row.reminder_enabled),
+    reminderTime: row.reminder_time,
+    reminderDays: JSON.parse(row.reminder_days),
+    partnerSetEnabled: Boolean(row.partner_set_enabled),
+  };
+}
+
 const hasLoggedToday = db.prepare(`
   SELECT 1
   FROM pushup_sets
@@ -142,68 +144,59 @@ const hasLoggedToday = db.prepare(`
 `);
 
 const hasReminderBeenSent = db.prepare(`
-  SELECT 1
-  FROM discord_reminders
-  WHERE user = ?
-    AND reminder_date = ?
-  LIMIT 1
+  SELECT 1 FROM discord_reminders WHERE user = ? AND reminder_date = ? LIMIT 1
 `);
 
 const recordReminderSent = db.prepare(`
-  INSERT OR IGNORE INTO discord_reminders (user, reminder_date)
-  VALUES (?, ?)
+  INSERT OR IGNORE INTO discord_reminders (user, reminder_date) VALUES (?, ?)
 `);
 
-async function sendDailyReminder(user, discordUserId, reminderDate) {
-  if (!discordUserId || !discordUserId.trim()) {
-    return;
+async function sendDiscordDm(user, content) {
+  const discordUserId = DISCORD_USERS[user];
+  if (!discordClient?.isReady() || !discordUserId?.trim()) {
+    throw new Error(`Discord is not configured for ${user}.`);
   }
 
-  if (hasReminderBeenSent.get(user, reminderDate)) {
-    return;
-  }
+  const discordUser = await discordClient.users.fetch(discordUserId);
+  await discordUser.send({ content });
+}
 
-  if (hasLoggedToday.get(user, reminderDate)) {
-    console.log(`[Discord] ${user} has already logged today. No reminder.`);
-    return;
-  }
+async function sendDailyReminder(user, reminderDate) {
+  const settings = getNotificationSettings(user);
+
+  if (!settings.reminderEnabled || hasReminderBeenSent.get(user, reminderDate)) return;
+  if (hasLoggedToday.get(user, reminderDate)) return;
+
+  const parts = getIndiaDateTimeParts();
+  const weekday = getIndiaWeekdayNumber(parts.weekday);
+  if (!settings.reminderDays.includes(weekday)) return;
+
+  const nowMinutes = Number(parts.hour) * 60 + Number(parts.minute);
+  const [reminderHour, reminderMinute] = settings.reminderTime.split(":").map(Number);
+  if (nowMinutes < reminderHour * 60 + reminderMinute) return;
 
   try {
-    const discordUser = await discordClient.users.fetch(discordUserId);
-
-    await discordUser.send({
-      content:
-        `Hey ${user}! You haven't logged any push-ups on DualRep today.\n\n` +
-        `Get a set done and keep your streak going.`,
-    });
+    await sendDiscordDm(
+      user,
+      `Hey ${user}! You haven't logged any push-ups on DualRep today.\n\n` +
+      `Get a set done and keep your streak going.`
+    );
 
     recordReminderSent.run(user, reminderDate);
-
-    console.log(
-      `[Discord] Daily reminder sent to ${user} for ${reminderDate}.`
-    );
+    console.log(`[Discord] Daily reminder sent to ${user} for ${reminderDate}.`);
   } catch (error) {
-    // Failed deliveries are not recorded, allowing a retry.
     console.error(`[Discord] Could not DM ${user}:`, error.message);
   }
 }
 
 async function checkDailyReminders() {
-  if (!discordClient?.isReady() || reminderCheckRunning) {
-    return;
-  }
-
-  if (!hasReminderTimeArrived()) {
-    return;
-  }
+  if (!discordClient?.isReady() || reminderCheckRunning) return;
 
   reminderCheckRunning = true;
-
   try {
     const reminderDate = getIndiaDateString();
-
-    for (const [user, discordUserId] of Object.entries(DISCORD_USERS)) {
-      await sendDailyReminder(user, discordUserId, reminderDate);
+    for (const user of ["Damian", "Icefox"]) {
+      await sendDailyReminder(user, reminderDate);
     }
   } catch (error) {
     console.error("[Discord] Reminder check failed:", error);
@@ -212,28 +205,38 @@ async function checkDailyReminders() {
   }
 }
 
+async function notifyPartnerOfSets(user, sets) {
+  const partner = user === "Icefox" ? "Damian" : "Icefox";
+  const settings = getNotificationSettings(partner);
+  if (!settings.partnerSetEnabled) return;
+
+  const totalReps = sets.reduce((total, set) => total + Number(set.reps), 0);
+  const setLabel = sets.length === 1 ? "a set" : `${sets.length} sets`;
+
+  try {
+    await sendDiscordDm(
+      partner,
+      `${user} just logged ${setLabel} on DualRep: ${totalReps} reps.\n\n` +
+      `Your turn to get moving!`
+    );
+  } catch (error) {
+    console.error(`[Discord] Could not send partner activity DM to ${partner}:`, error.message);
+  }
+}
+
 function startDiscordReminders() {
   if (!DISCORD_ENABLED) {
-    console.log(
-      "[Discord] Reminders disabled. Configure the bot token and at least one user ID in server/.env."
-    );
+    console.log("[Discord] Notifications disabled. Configure the bot token and user IDs in server/.env.");
     return;
   }
 
   const { Client, GatewayIntentBits } = require("discord.js");
-
-  discordClient = new Client({
-    intents: [GatewayIntentBits.Guilds],
-  });
+  discordClient = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   discordClient.once("ready", () => {
     console.log(`[Discord] Logged in as ${discordClient.user.tag}.`);
-    console.log("[Discord] Daily reminders scheduled for 11:00 AM IST.");
-
-    // Check immediately in case the server starts after 11 AM.
+    console.log("[Discord] Per-user daily reminders enabled (IST).");
     checkDailyReminders();
-
-    // Check every minute. Sent reminders are stored in SQLite.
     setInterval(checkDailyReminders, 60 * 1000);
   });
 
@@ -375,6 +378,106 @@ app.post("/api/auth/logout", (req, res) => {
   });
 });
 
+// Read notification preferences for the authenticated user only.
+app.get("/api/notifications/settings", requireAuth, (req, res) => {
+  res.json(getNotificationSettings(req.user.username));
+});
+
+// Update notification preferences for the authenticated user only.
+app.put("/api/notifications/settings", requireAuth, (req, res) => {
+  const {
+    reminderEnabled,
+    reminderTime,
+    reminderDays,
+    partnerSetEnabled,
+  } = req.body || {};
+
+  if (typeof reminderEnabled !== "boolean" || typeof partnerSetEnabled !== "boolean") {
+    return res.status(400).json({ error: "Invalid notification settings." });
+  }
+
+  if (typeof reminderTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminderTime)) {
+    return res.status(400).json({ error: "Reminder time must be a valid 24-hour time." });
+  }
+
+  if (
+    !Array.isArray(reminderDays) ||
+    reminderDays.some((day) => !Number.isInteger(day) || day < 1 || day > 7) ||
+    new Set(reminderDays).size !== reminderDays.length
+  ) {
+    return res.status(400).json({ error: "Select valid reminder weekdays." });
+  }
+
+  db.prepare(`
+    INSERT INTO notification_settings (
+      user, reminder_enabled, reminder_time, reminder_days, partner_set_enabled
+    )
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(user) DO UPDATE SET
+      reminder_enabled = excluded.reminder_enabled,
+      reminder_time = excluded.reminder_time,
+      reminder_days = excluded.reminder_days,
+      partner_set_enabled = excluded.partner_set_enabled,
+      updated_at = CURRENT_TIMESTAMP
+  `).run(
+    req.user.username,
+    reminderEnabled ? 1 : 0,
+    reminderTime,
+    JSON.stringify([...reminderDays].sort((a, b) => a - b)),
+    partnerSetEnabled ? 1 : 0
+  );
+
+  res.json(getNotificationSettings(req.user.username));
+});
+
+// Send a test DM with a 30-second per-user cooldown.
+app.post("/api/notifications/test", requireAuth, async (req, res) => {
+  const user = req.user.username;
+
+  if (testDmInFlight.has(user)) {
+    return res.status(409).json({
+      error: "A test DM is already being sent.",
+    });
+  }
+
+  const lastSentAt = testDmCooldowns.get(user);
+
+  if (lastSentAt) {
+    const remainingMs = TEST_DM_COOLDOWN_MS - (Date.now() - lastSentAt);
+
+    if (remainingMs > 0) {
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+
+      return res.status(429).json({
+        error: `Please wait ${remainingSeconds} seconds before sending another test DM.`,
+        retryAfter: remainingSeconds,
+      });
+    }
+  }
+
+  testDmInFlight.add(user);
+
+  try {
+    await sendDiscordDm(
+      user,
+      "DualRep test message: Discord notifications are connected successfully."
+    );
+
+    testDmCooldowns.set(user, Date.now());
+
+    return res.json({
+      sent: true,
+      cooldownSeconds: TEST_DM_COOLDOWN_MS / 1000,
+    });
+  } catch (error) {
+    return res.status(503).json({
+      error: error.message || "Could not send the test DM.",
+    });
+  } finally {
+    testDmInFlight.delete(user);
+  }
+});
+
 // Log one or more push-up sets.
 app.post("/api/sets", requireAuth, (req, res) => {
   const user = req.user.username;
@@ -421,6 +524,11 @@ app.post("/api/sets", requireAuth, (req, res) => {
   });
 
   const savedSets = saveSets(sets);
+
+  // Notification delivery is best-effort and does not affect the successful log.
+  notifyPartnerOfSets(user, savedSets).catch((error) => {
+    console.error("[Discord] Partner notification failed:", error);
+  });
 
   res.status(201).json({
     user,

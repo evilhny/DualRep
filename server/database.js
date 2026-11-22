@@ -59,3 +59,27 @@ db.exec(`
 `);
 
 module.exports = db;
+
+
+// Per-user Discord notification preferences.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notification_settings (
+    user TEXT PRIMARY KEY CHECK(user IN ('Damian', 'Icefox')),
+    reminder_enabled INTEGER NOT NULL DEFAULT 1 CHECK(reminder_enabled IN (0, 1)),
+    reminder_time TEXT NOT NULL DEFAULT '11:00',
+    reminder_days TEXT NOT NULL DEFAULT '[1,2,3,4,5,6,7]',
+    partner_set_enabled INTEGER NOT NULL DEFAULT 1 CHECK(partner_set_enabled IN (0, 1)),
+    test_dm_sent INTEGER NOT NULL DEFAULT 0 CHECK(test_dm_sent IN (0, 1)),
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS discord_reminders (
+    user TEXT NOT NULL CHECK(user IN ('Damian', 'Icefox')),
+    reminder_date TEXT NOT NULL,
+    sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user, reminder_date)
+  );
+
+  INSERT OR IGNORE INTO notification_settings (user) VALUES ('Damian');
+  INSERT OR IGNORE INTO notification_settings (user) VALUES ('Icefox');
+`);
