@@ -22,14 +22,7 @@ Icefox and Damian share one dashboard to log push-up workouts, track consistency
 
 ## Screenshots
 
-<!--
-To add screenshots:
-1. Create the directory docs/screenshots/
-2. Add your screenshot (for example, dashboard.png).
-3. Uncomment and update the image reference below.
-
 ![DualRep Dashboard](docs/screenshots/dashboard.png)
--->
 
 ## Tech Stack
 
