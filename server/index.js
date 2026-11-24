@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const { Agent, setGlobalDispatcher } = require("undici");
@@ -147,12 +146,20 @@ const hasReminderBeenSent = db.prepare(`
   SELECT 1 FROM discord_reminders WHERE user = ? AND reminder_date = ? LIMIT 1
 `);
 
+const hasRestDay = db.prepare(`
+  SELECT 1
+  FROM rest_days
+  WHERE user = ? AND rest_date = ?
+  LIMIT 1
+`);
+
 const recordReminderSent = db.prepare(`
   INSERT OR IGNORE INTO discord_reminders (user, reminder_date) VALUES (?, ?)
 `);
 
 async function sendDiscordDm(user, content) {
   const discordUserId = DISCORD_USERS[user];
+
   if (!discordClient?.isReady() || !discordUserId?.trim()) {
     throw new Error(`Discord is not configured for ${user}.`);
   }
@@ -166,13 +173,16 @@ async function sendDailyReminder(user, reminderDate) {
 
   if (!settings.reminderEnabled || hasReminderBeenSent.get(user, reminderDate)) return;
   if (hasLoggedToday.get(user, reminderDate)) return;
+  if (hasRestDay.get(user, reminderDate)) return;
 
   const parts = getIndiaDateTimeParts();
   const weekday = getIndiaWeekdayNumber(parts.weekday);
+
   if (!settings.reminderDays.includes(weekday)) return;
 
   const nowMinutes = Number(parts.hour) * 60 + Number(parts.minute);
   const [reminderHour, reminderMinute] = settings.reminderTime.split(":").map(Number);
+
   if (nowMinutes < reminderHour * 60 + reminderMinute) return;
 
   try {
@@ -193,8 +203,10 @@ async function checkDailyReminders() {
   if (!discordClient?.isReady() || reminderCheckRunning) return;
 
   reminderCheckRunning = true;
+
   try {
     const reminderDate = getIndiaDateString();
+
     for (const user of ["Damian", "Icefox"]) {
       await sendDailyReminder(user, reminderDate);
     }
@@ -208,6 +220,7 @@ async function checkDailyReminders() {
 async function notifyPartnerOfSets(user, sets) {
   const partner = user === "Icefox" ? "Damian" : "Icefox";
   const settings = getNotificationSettings(partner);
+
   if (!settings.partnerSetEnabled) return;
 
   const totalReps = sets.reduce((total, set) => total + Number(set.reps), 0);
@@ -231,11 +244,13 @@ function startDiscordReminders() {
   }
 
   const { Client, GatewayIntentBits } = require("discord.js");
+
   discordClient = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   discordClient.once("ready", () => {
     console.log(`[Discord] Logged in as ${discordClient.user.tag}.`);
     console.log("[Discord] Per-user daily reminders enabled (IST).");
+
     checkDailyReminders();
     setInterval(checkDailyReminders, 60 * 1000);
   });
@@ -478,11 +493,68 @@ app.post("/api/notifications/test", requireAuth, async (req, res) => {
   }
 });
 
+/* =========================
+   REST DAYS
+========================= */
+
+// Mark today as a manual rest day for the authenticated user.
+app.post("/api/rest-days/today", requireAuth, (req, res) => {
+  const user = req.user.username;
+  const today = getIndiaDateString();
+
+  // A date cannot be both a push-up day and a rest day.
+  if (hasLoggedToday.get(user, today)) {
+    return res.status(409).json({
+      error: "You've already logged push-ups today. A rest day can only be marked on a day with no push-up sets.",
+    });
+  }
+
+  db.prepare(`
+    INSERT OR IGNORE INTO rest_days (user, rest_date)
+    VALUES (?, ?)
+  `).run(user, today);
+
+  return res.status(201).json({
+    user,
+    date: today,
+    restDay: true,
+  });
+});
+
+// Undo today's manual rest day. Past dates are never accepted by this API.
+app.delete("/api/rest-days/today", requireAuth, (req, res) => {
+  const user = req.user.username;
+  const today = getIndiaDateString();
+
+  const result = db.prepare(`
+    DELETE FROM rest_days
+    WHERE user = ? AND rest_date = ?
+  `).run(user, today);
+
+  return res.json({
+    user,
+    date: today,
+    restDay: false,
+    removed: result.changes > 0,
+  });
+});
+
+/* =========================
+   PUSH-UP SETS
+========================= */
+
 // Log one or more push-up sets.
 app.post("/api/sets", requireAuth, (req, res) => {
   const user = req.user.username;
   const { sets } = req.body;
   const validTypes = ["Regular", "Diamond", "Wide", "Clap", "Finger"];
+  const today = getIndiaDateString();
+
+  if (hasRestDay.get(user, today)) {
+    return res.status(409).json({
+      error: "You've marked today as a rest day. Undo the rest day before logging push-ups.",
+    });
+  }
 
   if (!Array.isArray(sets) || sets.length === 0) {
     return res.status(400).json({
@@ -535,6 +607,10 @@ app.post("/api/sets", requireAuth, (req, res) => {
     sets: savedSets,
   });
 });
+
+/* =========================
+   DASHBOARD
+========================= */
 
 // Get dashboard data for both users.
 app.get("/api/dashboard", requireAuth, (req, res) => {
@@ -608,14 +684,23 @@ app.get("/api/dashboard", requireAuth, (req, res) => {
       types,
     };
 
-    // Get all distinct active dates in IST.
+    // Push-up dates and manual rest dates both count as active streak days.
     const activeDays = db.prepare(`
-      SELECT DISTINCT
-        date(created_at, '+5 hours', '+30 minutes') AS day
-      FROM pushup_sets
-      WHERE user = ?
+      SELECT day
+      FROM (
+        SELECT DISTINCT
+          date(created_at, '+5 hours', '+30 minutes') AS day
+        FROM pushup_sets
+        WHERE user = ?
+
+        UNION
+
+        SELECT rest_date AS day
+        FROM rest_days
+        WHERE user = ?
+      )
       ORDER BY day DESC
-    `).all(user);
+    `).all(user, user);
 
     const activeDaySet = new Set(
       activeDays.map((row) => row.day)
@@ -671,15 +756,38 @@ app.get("/api/dashboard", requireAuth, (req, res) => {
     ORDER BY dates.day ASC
   `).all();
 
+  // Rest-day markers for the same seven-day chart window.
+  const weeklyRestDays = db.prepare(`
+    SELECT user, rest_date AS date
+    FROM rest_days
+    WHERE rest_date >= date('now', '+5 hours', '+30 minutes', '-6 days')
+      AND rest_date <= date('now', '+5 hours', '+30 minutes')
+  `).all();
+
+  const restDayLookup = {
+    Damian: new Set(),
+    Icefox: new Set(),
+  };
+
+  for (const row of weeklyRestDays) {
+    restDayLookup[row.user].add(row.date);
+  }
+
   const dailyTotals = [];
 
   for (let i = 0; i < last7Days.length; i += 2) {
     const dayRows = last7Days.slice(i, i + 2);
 
+    const dayDate = dayRows[0].date;
+
     const day = {
-      date: dayRows[0].date,
+      date: dayDate,
       Damian: 0,
       Icefox: 0,
+      restDays: {
+        Damian: restDayLookup.Damian.has(dayDate),
+        Icefox: restDayLookup.Icefox.has(dayDate),
+      },
     };
 
     for (const row of dayRows) {
@@ -696,6 +804,10 @@ app.get("/api/dashboard", requireAuth, (req, res) => {
     last7Days: dailyTotals,
   });
 });
+
+/* =========================
+   MONTHLY CALENDAR
+========================= */
 
 // Get daily push-up totals for both users in a specific month.
 app.get("/api/month", requireAuth, (req, res) => {
@@ -749,10 +861,28 @@ app.get("/api/month", requireAuth, (req, res) => {
     data[row.user][row.day] = row.total;
   }
 
+  // Get manual rest days for both users in this month.
+  const restDayRows = db.prepare(`
+    SELECT user, rest_date AS day
+    FROM rest_days
+    WHERE rest_date >= ? AND rest_date < ?
+    ORDER BY rest_date ASC
+  `).all(startDate, endDate);
+
+  const restDays = {
+    Damian: [],
+    Icefox: [],
+  };
+
+  for (const row of restDayRows) {
+    restDays[row.user].push(row.day);
+  }
+
   res.json({
     year,
     month,
     data,
+    restDays,
   });
 });
 

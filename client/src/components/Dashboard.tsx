@@ -1,9 +1,11 @@
 
 import { useCallback, useEffect, useState } from "react";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Settings, Moon } from "lucide-react";
 import {
   getDashboard,
   logPushupSets,
+  markTodayRestDay,
+  undoTodayRestDay,
   type DashboardData,
   type PushupSet,
   type PushupType,
@@ -35,6 +37,7 @@ function Dashboard({
   const [error, setError] = useState("");
   const [isLogging, setIsLogging] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isRestDayUpdating, setIsRestDayUpdating] = useState(false);
   const [monthRefreshKey, setMonthRefreshKey] = useState(0);
 
   const [expandedUsers, setExpandedUsers] = useState<
@@ -82,6 +85,32 @@ function Dashboard({
           : "Could not save push-ups."
       );
       throw err;
+    }
+  }
+
+  async function handleToggleRestDay() {
+    if (isRestDayUpdating) return;
+
+    setIsRestDayUpdating(true);
+    setError("");
+
+    try {
+      if (isRestDay) {
+        await undoTodayRestDay();
+      } else {
+        await markTodayRestDay();
+      }
+
+      await loadDashboard();
+      setMonthRefreshKey((current) => current + 1);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not update your rest day."
+      );
+    } finally {
+      setIsRestDayUpdating(false);
     }
   }
 
@@ -136,6 +165,13 @@ function Dashboard({
 
   const yourStreak = data.streaks[user] ?? 0;
   const last7Days = data.last7Days ?? [];
+
+  // The final entry represents today in the backend's IST date range.
+  const todayEntry = last7Days[last7Days.length - 1];
+  const isRestDay = Boolean(
+    todayEntry?.restDays?.[user as "Damian" | "Icefox"]
+  );
+  const hasLoggedToday = (data.today[user] ?? 0) > 0;
 
   const maxDailyReps = Math.max(
     1,
@@ -227,18 +263,100 @@ function Dashboard({
               <span>days</span>
             </div>
 
-            <button
-              type="button"
-              className="log-button streak-log-button"
-              onClick={() => setIsLogging(true)}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
             >
-              + Log push-ups
-            </button>
+              <button
+                type="button"
+                className="log-button streak-log-button"
+                onClick={() => setIsLogging(true)}
+                disabled={isRestDay || isRestDayUpdating}
+                style={{
+                  opacity: isRestDay || isRestDayUpdating ? 0.4 : 1,
+                  cursor:
+                    isRestDay || isRestDayUpdating ? "not-allowed" : "pointer",
+                  filter:
+                    isRestDay || isRestDayUpdating ? "grayscale(0.7)" : "none",
+                  transition: "all 180ms ease",
+                }}
+                title={
+                  isRestDay
+                    ? "Undo your rest day before logging push-ups"
+                    : "Log push-ups"
+                }
+              >
+                + Log push-ups
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleRestDay}
+                disabled={isRestDayUpdating || hasLoggedToday}
+                aria-label={
+                  isRestDay
+                    ? "Undo today's rest day"
+                    : "Mark today as a rest day"
+                }
+                aria-pressed={isRestDay}
+                title={
+                  hasLoggedToday
+                    ? "You've already logged push-ups today"
+                    : isRestDay
+                      ? "Undo rest day"
+                      : "Mark today as a rest day"
+                }
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "42px",
+                  height: "42px",
+                  flexShrink: 0,
+                  borderRadius: "12px",
+                  border: `1px solid ${
+                    isRestDay
+                      ? "#a4193d"
+                      : "rgba(255, 223, 185, 0.22)"
+                  }`,
+                  background: isRestDay
+                    ? "rgba(164, 25, 61, 0.22)"
+                    : "rgba(255, 223, 185, 0.06)",
+                  color: isRestDay
+                    ? "#ffdfb9"
+                    : "rgba(255, 223, 185, 0.75)",
+                  cursor:
+                    isRestDayUpdating || hasLoggedToday
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity: hasLoggedToday ? 0.4 : 1,
+                  transition: "all 180ms ease",
+                }}
+              >
+                <Moon
+                  size={19}
+                  strokeWidth={1.9}
+                  fill={isRestDay ? "currentColor" : "none"}
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
           </div>
 
           <p className="card-description">
-            Consecutive days with activity
+            {isRestDay
+              ? "Rest day marked · Your streak is protected"
+              : "Consecutive days with activity"}
           </p>
+
+          {error && (
+            <p className="error-message" role="alert">
+              {error}
+            </p>
+          )}
         </section>
 
         {/* Weekly comparison */}
@@ -394,24 +512,45 @@ function Dashboard({
               const damianHeight =
                 (day.Damian / maxDailyReps) * 100;
 
+              const icefoxRestDay = Boolean(day.restDays?.Icefox);
+              const damianRestDay = Boolean(day.restDays?.Damian);
+
               return (
                 <div className="seven-day-column" key={day.date}>
                   <div className="seven-day-bars">
-                    {visibleSevenDayUsers.Icefox && (
-                      <div
-                        className="seven-day-bar icefox-bar"
-                        style={{ height: `${icefoxHeight}%` }}
-                        title={`Icefox: ${day.Icefox} reps`}
+                    {visibleSevenDayUsers.Icefox &&
+                      (icefoxRestDay ? (
+                        <Moon
+                        size={17}
+                        strokeWidth={2}
+                        fill="#ff174f"
+                        color="#ff174f"
+                        aria-label="Icefox rest day"
                       />
-                    )}
+                      ) : (
+                        <div
+                          className="seven-day-bar icefox-bar"
+                          style={{ height: `${icefoxHeight}%` }}
+                          title={`Icefox: ${day.Icefox} reps`}
+                        />
+                      ))}
 
-                    {visibleSevenDayUsers.Damian && (
-                      <div
-                        className="seven-day-bar damian-bar"
-                        style={{ height: `${damianHeight}%` }}
-                        title={`Damian: ${day.Damian} reps`}
-                      />
-                    )}
+                    {visibleSevenDayUsers.Damian &&
+                      (damianRestDay ? (
+                        <Moon
+                          size={17}
+                          strokeWidth={2}
+                          fill="currentColor"
+                          color="#ffdfb9"
+                          aria-label="Damian rest day"
+                        />
+                      ) : (
+                        <div
+                          className="seven-day-bar damian-bar"
+                          style={{ height: `${damianHeight}%` }}
+                          title={`Damian: ${day.Damian} reps`}
+                        />
+                      ))}
                   </div>
 
                   <span className="seven-day-label">

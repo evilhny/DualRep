@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+import { Moon } from "lucide-react";
 import { getMonth, type MonthData } from "../api";
 
 interface MonthViewProps {
@@ -103,11 +104,13 @@ function MonthView({ refreshKey }: MonthViewProps) {
         <div>
           <span className="legend-dot icefox-dot" />
           Icefox
+          <Moon size={12} className="legend-rest-icon icefox-rest" />
         </div>
 
         <div>
           <span className="legend-dot damian-dot" />
           Damian
+          <Moon size={12} className="legend-rest-icon damian-rest" />
         </div>
       </div>
 
@@ -148,31 +151,67 @@ function MonthView({ refreshKey }: MonthViewProps) {
           const icefoxTotal = data?.data.Icefox?.[dateKey] ?? 0;
           const damianTotal = data?.data.Damian?.[dateKey] ?? 0;
 
+          const icefoxRestDay =
+            data?.restDays?.Icefox?.includes(dateKey) ?? false;
+
+          const damianRestDay =
+            data?.restDays?.Damian?.includes(dateKey) ?? false;
+
+          const hasActivity =
+            icefoxTotal > 0 ||
+            damianTotal > 0 ||
+            icefoxRestDay ||
+            damianRestDay;
+
           const isToday =
             today.getFullYear() === year &&
             today.getMonth() + 1 === month &&
             today.getDate() === day;
 
+          const tooltip = [
+            `Icefox: ${icefoxRestDay ? "Rest day" : `${icefoxTotal} reps`}`,
+            `Damian: ${damianRestDay ? "Rest day" : `${damianTotal} reps`}`,
+          ].join(" | ");
+
           return (
             <div
               className={[
                 "calendar-day",
-                icefoxTotal > 0 || damianTotal > 0 ? "active" : "",
+                hasActivity ? "active" : "",
+                icefoxRestDay || damianRestDay ? "rest-day" : "",
                 isToday ? "today" : "",
-              ].join(" ")}
+              ]
+                .filter(Boolean)
+                .join(" ")}
               key={day}
               style={animationStyle}
-              title={`Icefox: ${icefoxTotal} reps | Damian: ${damianTotal} reps`}
+              title={tooltip}
             >
               <span className="day-number">{day}</span>
 
               <div className="activity-indicators">
-                {icefoxTotal > 0 && (
-                  <span className="activity-dot icefox-dot" />
+                {icefoxRestDay ? (
+                  <Moon
+                    size={12}
+                    className="activity-rest icefox-rest"
+                    aria-label="Icefox rest day"
+                  />
+                ) : (
+                  icefoxTotal > 0 && (
+                    <span className="activity-dot icefox-dot" />
+                  )
                 )}
 
-                {damianTotal > 0 && (
-                  <span className="activity-dot damian-dot" />
+                {damianRestDay ? (
+                  <Moon
+                    size={12}
+                    className="activity-rest damian-rest"
+                    aria-label="Damian rest day"
+                  />
+                ) : (
+                  damianTotal > 0 && (
+                    <span className="activity-dot damian-dot" />
+                  )
                 )}
               </div>
             </div>

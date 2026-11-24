@@ -776,3 +776,52 @@ button:focus-visible,input:focus-visible { outline:2px solid #c0184a; outline-of
   width: 20px;
   height: 20px;
 }
+
+
+/* =========================
+   REST DAY CALENDAR MARKERS
+========================= */
+
+/* Moon icons in the calendar legend */
+.legend-rest-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.icefox-rest {
+  color: #a4193d;
+}
+
+.damian-rest {
+  color: #ffdfb9;
+}
+
+/* Rest-day markers inside calendar cells */
+.activity-indicators {
+  min-height: 14px;
+}
+
+.activity-rest {
+  flex-shrink: 0;
+  stroke-width: 2;
+  animation: dotAppear 240ms ease both;
+}
+
+/* Rest days receive the same activity background as logged days */
+.calendar-day.rest-day {
+  background-color: rgba(164, 25, 61, 0.12);
+  border-color: rgba(192, 24, 74, 0.2);
+}
+
+/* Keep markers legible on smaller screens */
+@media (max-width: 400px) {
+  .activity-rest {
+    width: 10px;
+    height: 10px;
+  }
+
+  .legend-rest-icon {
+    width: 11px;
+    height: 11px;
+  }
+}

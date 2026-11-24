@@ -1,4 +1,3 @@
-
 /* =========================
    AUTHENTICATION
 ========================= */
@@ -132,6 +131,10 @@ export interface DailyRepData {
   date: string;
   Damian: number;
   Icefox: number;
+  restDays?: {
+    Damian: boolean;
+    Icefox: boolean;
+  };
 }
 
 export interface DashboardData {
@@ -151,6 +154,34 @@ export async function getDashboard(): Promise<DashboardData> {
   }
 
   return response.json();
+}
+
+/* =========================
+   REST DAYS
+========================= */
+
+// Mark today as a rest day for the logged-in user.
+export async function markTodayRestDay(): Promise<void> {
+  const response = await fetch("/api/rest-days/today", {
+    method: "POST",
+    credentials: "same-origin",
+  });
+
+  if (!response.ok) {
+    throw new Error(await getError(response));
+  }
+}
+
+// Undo today's rest day for the logged-in user.
+export async function undoTodayRestDay(): Promise<void> {
+  const response = await fetch("/api/rest-days/today", {
+    method: "DELETE",
+    credentials: "same-origin",
+  });
+
+  if (!response.ok) {
+    throw new Error(await getError(response));
+  }
 }
 
 /* =========================
@@ -194,6 +225,7 @@ export interface MonthData {
   year: number;
   month: number;
   data: Record<string, Record<string, number>>;
+  restDays: Record<string, string[]>;
 }
 
 export async function getMonth(

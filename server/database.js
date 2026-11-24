@@ -8,21 +8,22 @@ const db = new Database(dbPath);
 
 db.pragma("foreign_keys = ON");
 
-// Existing push-up records — preserve existing schema and data.
+// Push-up records.
+// Finger is included in the supported push-up types.
 db.exec(`
   CREATE TABLE IF NOT EXISTS pushup_sets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT NOT NULL CHECK(user IN ('Damian', 'Icefox')),
     type TEXT NOT NULL DEFAULT 'Regular'
-      CHECK(type IN ('Regular', 'Diamond', 'Wide', 'Clap')),
+      CHECK(type IN ('Regular', 'Diamond', 'Wide', 'Clap', 'Finger')),
     reps INTEGER NOT NULL CHECK(reps > 0),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 `);
 
-// Migrate existing databases that were created before push-up types existed.
-const columns = db.prepare("PRAGMA table_info(pushup_sets)").all();
-const hasTypeColumn = columns.some((column) => column.name === "type");
+// Migrate databases created before push-up types existed.
+let columns = db.prepare("PRAGMA table_info(pushup_sets)").all();
+let hasTypeColumn = columns.some((column) => column.name === "type");
 
 if (!hasTypeColumn) {
   db.exec(`
@@ -32,6 +33,55 @@ if (!hasTypeColumn) {
 
   console.log("Database migrated: added push-up type column.");
 }
+
+// Migrate the old push-up type constraint to include Finger.
+// Existing records, IDs and timestamps are preserved.
+const pushupTable = db.prepare(`
+  SELECT sql FROM sqlite_master
+  WHERE type = 'table' AND name = 'pushup_sets'
+`).get();
+
+if (pushupTable && !pushupTable.sql.includes("'Finger'")) {
+  const migratePushupTypes = db.transaction(() => {
+    db.exec(`
+      CREATE TABLE pushup_sets_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user TEXT NOT NULL CHECK(user IN ('Damian', 'Icefox')),
+        type TEXT NOT NULL DEFAULT 'Regular'
+          CHECK(type IN ('Regular', 'Diamond', 'Wide', 'Clap', 'Finger')),
+        reps INTEGER NOT NULL CHECK(reps > 0),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      INSERT INTO pushup_sets_new (id, user, type, reps, created_at)
+      SELECT id, user, type, reps, created_at
+      FROM pushup_sets;
+
+      DROP TABLE pushup_sets;
+
+      ALTER TABLE pushup_sets_new RENAME TO pushup_sets;
+    `);
+  });
+
+  migratePushupTypes();
+
+  console.log("Database migrated: Finger push-up type enabled.");
+}
+
+// Rest days.
+// Each user can mark one rest day per calendar date.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rest_days (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user TEXT NOT NULL CHECK(user IN ('Damian', 'Icefox')),
+    rest_date TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user, rest_date)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_rest_days_user_date
+  ON rest_days(user, rest_date);
+`);
 
 // User accounts. Only Damian and Icefox are permitted.
 db.exec(`
@@ -58,9 +108,6 @@ db.exec(`
   ON sessions(user_id);
 `);
 
-module.exports = db;
-
-
 // Per-user Discord notification preferences.
 db.exec(`
   CREATE TABLE IF NOT EXISTS notification_settings (
@@ -83,3 +130,5 @@ db.exec(`
   INSERT OR IGNORE INTO notification_settings (user) VALUES ('Damian');
   INSERT OR IGNORE INTO notification_settings (user) VALUES ('Icefox');
 `);
+
+module.exports = db;
