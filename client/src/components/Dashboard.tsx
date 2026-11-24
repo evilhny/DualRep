@@ -23,6 +23,7 @@ const pushupTypes: PushupType[] = [
   "Diamond",
   "Wide",
   "Clap",
+  "Finger",
 ];
 
 function Dashboard({

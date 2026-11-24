@@ -482,7 +482,7 @@ app.post("/api/notifications/test", requireAuth, async (req, res) => {
 app.post("/api/sets", requireAuth, (req, res) => {
   const user = req.user.username;
   const { sets } = req.body;
-  const validTypes = ["Regular", "Diamond", "Wide", "Clap"];
+  const validTypes = ["Regular", "Diamond", "Wide", "Clap", "Finger"];
 
   if (!Array.isArray(sets) || sets.length === 0) {
     return res.status(400).json({
@@ -539,7 +539,7 @@ app.post("/api/sets", requireAuth, (req, res) => {
 // Get dashboard data for both users.
 app.get("/api/dashboard", requireAuth, (req, res) => {
   const users = ["Damian", "Icefox"];
-  const pushupTypes = ["Regular", "Diamond", "Wide", "Clap"];
+  const pushupTypes = ["Regular", "Diamond", "Wide", "Clap", "Finger"];
 
   const today = {};
   const week = {};

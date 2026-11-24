@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import type { PushupSet, PushupType } from "../api";
 
@@ -11,6 +12,7 @@ const pushupTypes: PushupType[] = [
   "Diamond",
   "Wide",
   "Clap",
+  "Finger",
 ];
 
 const CLOSE_ANIMATION_MS = 180;
@@ -26,6 +28,7 @@ function LogPushups({ onSave, onClose }: LogPushupsProps) {
     Diamond: { enabled: false, reps: 0 },
     Wide: { enabled: false, reps: 0 },
     Clap: { enabled: false, reps: 0 },
+    Finger: { enabled: false, reps: 0 },
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -192,7 +195,6 @@ function LogPushups({ onSave, onClose }: LogPushupsProps) {
 
         <div className="summary">
           <span className="summary-label">TOTAL REPS</span>
-
           <strong className="summary-total">{totalReps}</strong>
         </div>
 

@@ -32,7 +32,6 @@ export async function checkUsername(
   return response.json();
 }
 
-
 async function getError(response: Response): Promise<string> {
   try {
     const data = await response.json();
@@ -162,7 +161,8 @@ export type PushupType =
   | "Regular"
   | "Diamond"
   | "Wide"
-  | "Clap";
+  | "Clap"
+  | "Finger";
 
 export interface PushupSet {
   type: PushupType;
@@ -213,7 +213,6 @@ export async function getMonth(
 
   return response.json();
 }
-
 
 /* =========================
    DISCORD NOTIFICATION SETTINGS
