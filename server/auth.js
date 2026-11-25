@@ -8,7 +8,6 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 400; // 400 days
 // Generate a salted scrypt password hash.
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
-
   const hash = crypto.scryptSync(password, salt, 64).toString("hex");
 
   return `scrypt$${salt}$${hash}`;
@@ -36,14 +35,14 @@ function verifyPassword(password, storedHash) {
 }
 
 // Create a persistent session.
-function createSession(userId) {
+async function createSession(userId) {
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-  db.prepare(`
-    INSERT INTO sessions (token_hash, user_id)
-    VALUES (?, ?)
-  `).run(tokenHash, userId);
+  await db.query(
+    `INSERT INTO sessions (token_hash, user_id) VALUES ($1, $2)`,
+    [tokenHash, userId]
+  );
 
   return token;
 }
@@ -57,7 +56,9 @@ function getCookieToken(req) {
     .map((item) => item.trim())
     .find((item) => item.startsWith(`${COOKIE_NAME}=`));
 
-  return cookie ? decodeURIComponent(cookie.substring(COOKIE_NAME.length + 1)) : null;
+  return cookie
+    ? decodeURIComponent(cookie.substring(COOKIE_NAME.length + 1))
+    : null;
 }
 
 // Set the session cookie.
@@ -81,57 +82,71 @@ function clearSessionCookie(res) {
 }
 
 // Require an authenticated session.
-function requireAuth(req, res, next) {
-  const token = getCookieToken(req);
+async function requireAuth(req, res, next) {
+  try {
+    const token = getCookieToken(req);
 
-  if (!token) {
-    return res.status(401).json({ error: "Authentication required." });
+    if (!token) {
+      return res.status(401).json({ error: "Authentication required." });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const result = await db.query(
+      `SELECT
+         sessions.token_hash,
+         users.id,
+         users.username,
+         sessions.expires_at
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token_hash = $1`,
+      [tokenHash]
+    );
+
+    const session = result.rows[0];
+
+    if (!session) {
+      clearSessionCookie(res);
+      return res.status(401).json({ error: "Invalid session." });
+    }
+
+    if (session.expires_at && new Date(session.expires_at) <= new Date()) {
+      await db.query(
+        "DELETE FROM sessions WHERE token_hash = $1",
+        [tokenHash]
+      );
+
+      clearSessionCookie(res);
+      return res.status(401).json({ error: "Session expired." });
+    }
+
+    req.user = {
+      id: session.id,
+      username: session.username,
+    };
+
+    // Refresh the browser cookie during active use.
+    setSessionCookie(res, token);
+
+    return next();
+  } catch (error) {
+    return next(error);
   }
-
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
-  const session = db.prepare(`
-    SELECT
-      sessions.token_hash,
-      users.id,
-      users.username,
-      sessions.expires_at
-    FROM sessions
-    JOIN users ON users.id = sessions.user_id
-    WHERE sessions.token_hash = ?
-  `).get(tokenHash);
-
-  if (!session) {
-    clearSessionCookie(res);
-    return res.status(401).json({ error: "Invalid session." });
-  }
-
-  if (session.expires_at && new Date(session.expires_at) <= new Date()) {
-    db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(tokenHash);
-    clearSessionCookie(res);
-    return res.status(401).json({ error: "Session expired." });
-  }
-
-  req.user = {
-    id: session.id,
-    username: session.username,
-  };
-
-  // Refresh the browser cookie during active use.
-  setSessionCookie(res, token);
-
-  next();
 }
 
 // Destroy a session on logout.
-function destroySession(req) {
+async function destroySession(req) {
   const token = getCookieToken(req);
 
   if (!token) return;
 
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-  db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(tokenHash);
+  await db.query(
+    "DELETE FROM sessions WHERE token_hash = $1",
+    [tokenHash]
+  );
 }
 
 module.exports = {
