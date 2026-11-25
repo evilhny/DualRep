@@ -6,6 +6,7 @@
 
 Icefox and Damian share one dashboard to log push-up workouts, track consistency, protect streaks with rest days, and motivate each other. Each person's activity is tracked separately, while both can see the shared training journey.
 
+
 ## Features
 
 - **Designed for two people:** Built specifically around the two users, **Icefox** and **Damian**.
@@ -18,7 +19,7 @@ Icefox and Damian share one dashboard to log push-up workouts, track consistency
 - **Discord notifications:** Optional workout reminders and partner activity notifications.
 - **Personal notification settings:** Configure notification preferences independently.
 - **Progressive Web App:** Install DualRep on supported devices for an app-like experience.
-- **Self-hosted data:** Store workout data in your own SQLite database.
+- **Self-hosted data:** Store workout and application data in your own PostgreSQL database.
 
 ## Screenshots
 
@@ -34,7 +35,8 @@ Icefox and Damian share one dashboard to log push-up workouts, track consistency
 | Icons | Lucide React |
 | PWA | vite-plugin-pwa |
 | Backend | Node.js, Express |
-| Database | SQLite, better-sqlite3 |
+| Database | PostgreSQL |
+| Database driver | node-postgres (`pg`) |
 | Notifications | Discord integration |
 
 ## Project Structure
@@ -55,7 +57,8 @@ DualRep/
 │   ├── auth.js
 │   ├── database.js
 │   ├── index.js
-│   └── package.json
+│   ├── package.json
+│   └── ...
 │
 └── .gitignore
 ```
@@ -67,6 +70,7 @@ DualRep/
 - Node.js 24 (recommended)
 - npm
 - Git
+- PostgreSQL
 
 ### 1. Clone the repository
 
@@ -75,20 +79,52 @@ git clone https://github.com/evilhny/DualRep.git
 cd DualRep
 ```
 
-### 2. Install backend dependencies
+### 2. Set up PostgreSQL
+
+Install PostgreSQL if it is not already installed.
+
+Create a database and a dedicated application user.
+
+Open the PostgreSQL shell:
+
+```bash
+sudo -u postgres psql
+```
+
+Execute the following SQL:
+
+```sql
+CREATE USER dualrep_appuser WITH PASSWORD 'your_secure_password';
+
+CREATE DATABASE dualrep OWNER dualrep_appuser;
+```
+
+Exit PostgreSQL:
+
+```sql
+\q
+```
+
+The application uses PostgreSQL for persistent storage. Its database connection is configured through environment variables.
+
+### 3. Install backend dependencies
 
 ```bash
 cd server
 npm install
 ```
 
-### 3. Configure environment variables
+### 4. Configure environment variables
 
 Create a `.env` file inside the `server` directory.
 
 ```env
-# SQLite database location (optional)
-DB_PATH=./dualrep.db
+# PostgreSQL connection
+PGHOST=127.0.0.1
+PGPORT=5432
+PGDATABASE=dualrep
+PGUSER=dualrep_appuser
+PGPASSWORD=your_secure_password
 
 # Optional Discord integration
 DISCORD_BOT_TOKEN=
@@ -96,9 +132,13 @@ DISCORD_ICEFOX_USER_ID=
 DISCORD_DAMIAN_USER_ID=
 ```
 
-If `DB_PATH` is not specified, the database defaults to `server/dualrep.db`. For production deployments, an absolute database path is recommended.
+**Important:**
+- Replace the PostgreSQL password with the password configured in Step 2.
+- Keep `.env` private and never commit it to Git.
+- For production deployments, use secure environment-variable management rather than committing credentials.
+- PostgreSQL should not be exposed publicly unless there is a specific requirement and appropriate network security.
 
-### 4. Start the backend
+### 5. Start the backend
 
 From the `server` directory:
 
@@ -112,7 +152,7 @@ The backend listens on:
 http://127.0.0.1:3001
 ```
 
-### 5. Install frontend dependencies
+### 6. Install frontend dependencies
 
 Open a second terminal:
 
@@ -121,13 +161,15 @@ cd DualRep/client
 npm install
 ```
 
-### 6. Start the frontend development server
+### 7. Start the frontend development server
 
 ```bash
 npm run dev
 ```
 
-Vite starts the development server and proxies `/api` requests to the backend on port `3001`. Open the local URL displayed by Vite.
+Vite starts the development server and proxies `/api` requests to the backend on port `3001`.
+
+Open the local URL displayed by Vite.
 
 ## Production Build
 
@@ -151,26 +193,71 @@ cd server
 npm start
 ```
 
-For a public deployment, use a reverse proxy such as Nginx and configure HTTPS.
+For a public deployment:
+
+- Use a reverse proxy such as Nginx.
+- Configure HTTPS.
+- Keep PostgreSQL accessible only to trusted connections.
+- Configure application environment variables securely.
+- Run the backend using a process manager such as PM2 or systemd.
 
 ## Database and Backups
 
-DualRep uses SQLite through `better-sqlite3`. The database is created automatically when the backend starts.
+DualRep uses **PostgreSQL** as its primary database, accessed through the Node.js `pg` package.
 
-It stores application data such as:
+The database stores application data such as:
 
-- User and session information
-- Workout sets and repetition counts
-- Manual rest-day records
-- Notification preferences
+- User and session information.
+- Workout sets and repetition counts.
+- Push-up variation types.
+- Manual rest-day records.
+- Notification preferences.
+- Discord reminder settings.
 
-Back up the SQLite database regularly. Do not commit database files, backups, credentials, or `.env` files to Git.
+### Database backups
+
+Use PostgreSQL's `pg_dump` utility to create backups.
+
+Example:
+
+```bash
+pg_dump -h 127.0.0.1 \
+  -U dualrep_appuser \
+  -d dualrep \
+  -F c \
+  -f dualrep-backup.dump
+```
+
+You can restore a backup using:
+
+```bash
+pg_restore -h 127.0.0.1 \
+  -U dualrep_appuser \
+  -d dualrep \
+  --clean --if-exists \
+  dualrep-backup.dump
+```
+
+**Backup recommendations:**
+
+- Schedule regular database backups.
+- Keep backup files outside the application directory.
+- Store a copy somewhere separate from the VPS.
+- Never commit database backups, credentials, or `.env` files to Git.
 
 ## Discord Integration
 
 Discord integration is optional. When configured, DualRep can send workout reminders and partner activity notifications.
 
-Configure the Discord bot token and the Discord user IDs for **Icefox** and **Damian** in `server/.env`. The core workout-tracking features do not require Discord credentials.
+Configure the following environment variables in `server/.env`:
+
+```env
+DISCORD_BOT_TOKEN=
+DISCORD_ICEFOX_USER_ID=
+DISCORD_DAMIAN_USER_ID=
+```
+
+The core workout-tracking features do not require Discord credentials.
 
 ## The Two Users
 
