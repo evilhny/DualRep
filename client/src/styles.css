@@ -1,9 +1,17 @@
 @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&display=swap");
-:root { font-family: "Roboto",system-ui,sans-serif; color:#ffdfb9; background:linear-gradient(135deg,#100D1D 0%,#17111D 55%,#21101A 100%);
+:root {
+  font-family: "Roboto", system-ui, sans-serif;
+  color: #ffdfb9;
+  background: #080808;
 }
-* { box-sizing:border-box;
-}
-body { margin:0; min-width:320px; min-height:100vh; color:#f4e4d1; background:linear-gradient(135deg,#100D1D 0%,#17111D 55%,#21101A 100%); background-attachment:fixed; overflow-x:hidden;
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  color: #f4e4d1;
+  background: #080808;
+  overflow-x: hidden;
 }
 button,input { font:inherit;
 }
@@ -824,4 +832,146 @@ button:focus-visible,input:focus-visible { outline:2px solid #c0184a; outline-of
     width: 11px;
     height: 11px;
   }
+}
+
+
+/* ========================================
+   DUALREP — BLACK + ANIMATED RED GLOW + GRID
+======================================== */
+
+/*
+  Background treatment:
+  - neutral OLED black base
+  - subtle, slowly drifting red ambient glow
+  - static monochrome grid
+  - no white, blue or purple glow
+*/
+
+html {
+  min-height: 100%;
+  background: #080808;
+}
+
+body {
+  position: relative;
+  isolation: isolate;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #080808;
+  background-image:
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.045) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.045) 1px,
+      transparent 1px
+    );
+  background-size: 52px 52px;
+  background-position: left top;
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+/* Animated glow sits behind the app; the grid stays completely still */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -12%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 1050px 720px at 42% 12%,
+      rgba(164, 25, 61, 0.30) 0%,
+      rgba(120, 16, 43, 0.19) 38%,
+      rgba(75, 12, 30, 0.08) 66%,
+      transparent 84%
+    ),
+    radial-gradient(
+      ellipse 720px 560px at 12% 22%,
+      rgba(164, 25, 61, 0.16),
+      transparent 76%
+    ),
+    radial-gradient(
+      ellipse 760px 560px at 88% 24%,
+      rgba(164, 25, 61, 0.12),
+      transparent 78%
+    );
+  background-size: 115% 115%, 110% 110%, 110% 110%;
+  background-position: 50% 0%, 0% 0%, 100% 0%;
+  background-repeat: no-repeat;
+  animation: dualrep-glow-pan 45s linear infinite alternate;
+  will-change: background-position;
+}
+
+@keyframes dualrep-glow-pan {
+  from {
+    transform: translate3d(-9%, -1%, 0);
+  }
+  to {
+    transform: translate3d(9%, 2%, 0);
+  }
+}
+
+/* Keep the application transparent so the page background remains visible */
+#root,
+.app {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+}
+
+/* Mobile: tighter grid and a gentler animated glow */
+@media (max-width: 760px) {
+  body {
+    background-size: 36px 36px;
+  }
+
+  body::before {
+    inset: -16%;
+    background:
+      radial-gradient(
+        ellipse 620px 500px at 50% 0%,
+        rgba(164, 25, 61, 0.27) 0%,
+        rgba(120, 16, 43, 0.14) 48%,
+        transparent 82%
+      );
+    background-size: 115% 115%;
+    animation-duration: 60s;
+  }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+}
+
+/* Preserve correct auth input sizing */
+.auth-form {
+  width: 100%;
+}
+
+.auth-input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffdfb9;
+  -webkit-box-shadow: 0 0 0 1000px #141414 inset;
+  caret-color: #ffdfb9;
 }
