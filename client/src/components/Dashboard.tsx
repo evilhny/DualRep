@@ -3,10 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 import { LogOut, Settings, Moon } from "lucide-react";
 import {
   getDashboard,
+  getMonth,
   logPushupSets,
   markTodayRestDay,
   undoTodayRestDay,
   type DashboardData,
+  type MonthData,
   type PushupSet,
   type PushupType,
 } from "../api";
@@ -28,6 +30,27 @@ const pushupTypes: PushupType[] = [
   "Finger",
 ];
 
+type DashboardUser = "Icefox" | "Damian";
+
+function getLocalDateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function formatSelectedDate(dateString: string): string {
+  const date = new Date(`${dateString}T00:00:00`);
+
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function Dashboard({
   user,
   onLogout,
@@ -39,6 +62,13 @@ function Dashboard({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRestDayUpdating, setIsRestDayUpdating] = useState(false);
   const [monthRefreshKey, setMonthRefreshKey] = useState(0);
+
+  const [selectedDate, setSelectedDate] = useState(
+    getLocalDateKey(new Date())
+  );
+
+  const [monthData, setMonthData] = useState<MonthData | null>(null);
+  const [monthError, setMonthError] = useState("");
 
   const [expandedUsers, setExpandedUsers] = useState<
     Record<string, boolean>
@@ -71,6 +101,35 @@ function Dashboard({
       loadDashboard();
     }
   }, [loadDashboard, data]);
+
+  // Load the month containing the currently selected calendar date.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSelectedMonth() {
+      const [year, month] = selectedDate.split("-").map(Number);
+
+      setMonthError("");
+
+      try {
+        const result = await getMonth(year, month);
+
+        if (!cancelled) {
+          setMonthData(result);
+        }
+      } catch {
+        if (!cancelled) {
+          setMonthError("Could not load the daily breakdown.");
+        }
+      }
+    }
+
+    loadSelectedMonth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, monthRefreshKey]);
 
   async function handleSaveSet(sets: PushupSet[]) {
     try {
@@ -168,9 +227,11 @@ function Dashboard({
 
   // The final entry represents today in the backend's IST date range.
   const todayEntry = last7Days[last7Days.length - 1];
+
   const isRestDay = Boolean(
-    todayEntry?.restDays?.[user as "Damian" | "Icefox"]
+    todayEntry?.restDays?.[user as DashboardUser]
   );
+
   const hasLoggedToday = (data.today[user] ?? 0) > 0;
 
   const maxDailyReps = Math.max(
@@ -189,7 +250,7 @@ function Dashboard({
     ? last7Days.reduce((total, day) => total + day.Damian, 0)
     : 0;
 
-  function toggleSevenDayUser(userName: "Icefox" | "Damian") {
+  function toggleSevenDayUser(userName: DashboardUser) {
     setVisibleSevenDayUsers((current) => ({
       ...current,
       [userName]: !current[userName],
@@ -205,6 +266,64 @@ function Dashboard({
       }),
       day: parsedDate.getDate(),
     };
+  }
+
+  const selectedDaySets = monthData?.sets?.[selectedDate];
+
+  const selectedDayTotals = {
+    Icefox: monthData?.data?.Icefox?.[selectedDate] ?? 0,
+    Damian: monthData?.data?.Damian?.[selectedDate] ?? 0,
+  };
+
+  const selectedDayRest = {
+    Icefox:
+      monthData?.restDays?.Icefox?.includes(selectedDate) ?? false,
+    Damian:
+      monthData?.restDays?.Damian?.includes(selectedDate) ?? false,
+  };
+
+  function renderDailyBreakdown(userName: DashboardUser) {
+    const sets = selectedDaySets?.[userName] ?? [];
+    const total = selectedDayTotals[userName];
+    const isUserRestDay = selectedDayRest[userName];
+
+    return (
+      <section
+        className={`daily-user-breakdown ${userName.toLowerCase()}-daily-breakdown`}
+        key={userName}
+      >
+        <div className="daily-user-header">
+          <div className="daily-user-identity">
+            <span className={`legend-dot ${userName.toLowerCase()}-dot`} />
+            <h3>{userName}</h3>
+          </div>
+
+          <strong className="daily-user-total">
+            {total} <span>reps</span>
+          </strong>
+        </div>
+
+        {isUserRestDay ? (
+          <p className="daily-rest-message">
+            <Moon size={14} />
+            Rest day
+          </p>
+        ) : sets.length > 0 ? (
+          <div className="daily-set-list">
+            {sets.map((set) => (
+              <div className="daily-set-pill" key={set.id}>
+                <span className="daily-set-type">{set.type}</span>
+                <strong>{set.reps}</strong>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="daily-empty-message">
+            No push-ups logged.
+          </p>
+        )}
+      </section>
+    );
   }
 
   return (
@@ -254,19 +373,36 @@ function Dashboard({
         </div>
 
         {/* Streak and logging action */}
-        <section className="dashboard-card streak-card">
+        <section
+          className="dashboard-card streak-card"
+          style={{
+            minHeight: "220px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <p className="card-label">CURRENT STREAK</p>
 
-          <div className="streak-content">
+          <div
+            className="streak-content"
+            style={{
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "28px",
+            }}
+          >
             <div className="streak">
-              <strong>{yourStreak}</strong>
+              <strong style={{ fontSize: "2.8rem" }}>{yourStreak}</strong>
               <span>days</span>
             </div>
 
             <div
+              className="streak-actions"
               style={{
                 display: "flex",
                 alignItems: "center",
+                flexWrap: "wrap",
                 gap: "8px",
               }}
             >
@@ -278,9 +414,13 @@ function Dashboard({
                 style={{
                   opacity: isRestDay || isRestDayUpdating ? 0.4 : 1,
                   cursor:
-                    isRestDay || isRestDayUpdating ? "not-allowed" : "pointer",
+                    isRestDay || isRestDayUpdating
+                      ? "not-allowed"
+                      : "pointer",
                   filter:
-                    isRestDay || isRestDayUpdating ? "grayscale(0.7)" : "none",
+                    isRestDay || isRestDayUpdating
+                      ? "grayscale(0.7)"
+                      : "none",
                   transition: "all 180ms ease",
                 }}
                 title={
@@ -294,6 +434,7 @@ function Dashboard({
 
               <button
                 type="button"
+                className="log-button streak-log-button"
                 onClick={handleToggleRestDay}
                 disabled={isRestDayUpdating || hasLoggedToday}
                 aria-label={
@@ -310,38 +451,24 @@ function Dashboard({
                       : "Mark today as a rest day"
                 }
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "42px",
-                  height: "42px",
-                  flexShrink: 0,
-                  borderRadius: "12px",
-                  border: `1px solid ${
-                    isRestDay
-                      ? "#a4193d"
-                      : "rgba(255, 223, 185, 0.22)"
-                  }`,
-                  background: isRestDay
-                    ? "rgba(164, 25, 61, 0.22)"
-                    : "rgba(255, 223, 185, 0.06)",
-                  color: isRestDay
-                    ? "#ffdfb9"
-                    : "rgba(255, 223, 185, 0.75)",
+                  opacity: hasLoggedToday || isRestDayUpdating ? 0.4 : 1,
                   cursor:
                     isRestDayUpdating || hasLoggedToday
                       ? "not-allowed"
                       : "pointer",
-                  opacity: hasLoggedToday ? 0.4 : 1,
+                  background: isRestDay
+                    ? "rgba(164, 25, 61, 0.8)"
+                    : "#a4193d",
                   transition: "all 180ms ease",
                 }}
               >
                 <Moon
-                  size={19}
+                  size={16}
                   strokeWidth={1.9}
                   fill={isRestDay ? "currentColor" : "none"}
                   aria-hidden="true"
                 />
+                {isRestDay ? "Undo rest day" : "Mark rest day"}
               </button>
             </div>
           </div>
@@ -357,76 +484,6 @@ function Dashboard({
               {error}
             </p>
           )}
-        </section>
-
-        {/* Weekly comparison */}
-        <section className="dashboard-card">
-          <p className="card-label">THIS WEEK</p>
-
-          {["Icefox", "Damian"].map((userName) => {
-            const weeklyData = data.week[userName];
-            const isExpanded = Boolean(expandedUsers[userName]);
-
-            return (
-              <div
-                className={`weekly-user ${isExpanded ? "expanded" : ""}`}
-                key={userName}
-              >
-                <button
-                  type="button"
-                  className="user-total"
-                  onClick={() => toggleUser(userName)}
-                  aria-expanded={isExpanded}
-                  aria-controls={`weekly-breakdown-${userName.toLowerCase()}`}
-                >
-                  <span className="user-name">{userName}</span>
-
-                  <span className="user-total-value">
-                    <strong>{weeklyData?.total ?? 0}</strong>
-
-                    <span
-                      className={`expand-arrow ${
-                        isExpanded ? "expanded" : ""
-                      }`}
-                      aria-hidden="true"
-                    >
-                      ▶
-                    </span>
-                  </span>
-                </button>
-
-                <div
-                  className="pushup-breakdown"
-                  id={`weekly-breakdown-${userName.toLowerCase()}`}
-                  aria-hidden={!isExpanded}
-                >
-                  {(weeklyData?.total ?? 0) === 0 ? (
-                    <p className="no-pushups">
-                      No push-ups logged this week.
-                    </p>
-                  ) : (
-                    pushupTypes.map((type) => {
-                      const reps = weeklyData?.types?.[type] ?? 0;
-
-                      if (reps === 0) {
-                        return null;
-                      }
-
-                      return (
-                        <div
-                          className="pushup-breakdown-row"
-                          key={type}
-                        >
-                          <span>{type}</span>
-                          <strong>{reps}</strong>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            );
-          })}
         </section>
 
         {/* Last 7 days comparison */}
@@ -501,7 +558,9 @@ function Dashboard({
             role="img"
             aria-label={`Daily push-up reps over the last seven days. Icefox ${
               visibleSevenDayUsers.Icefox ? "visible" : "hidden"
-            }, Damian ${visibleSevenDayUsers.Damian ? "visible" : "hidden"}.`}
+            }, Damian ${
+              visibleSevenDayUsers.Damian ? "visible" : "hidden"
+            }.`}
           >
             {last7Days.map((day) => {
               const { weekday, day: dayNumber } = formatDay(day.date);
@@ -521,12 +580,12 @@ function Dashboard({
                     {visibleSevenDayUsers.Icefox &&
                       (icefoxRestDay ? (
                         <Moon
-                        size={17}
-                        strokeWidth={2}
-                        fill="#ff174f"
-                        color="#ff174f"
-                        aria-label="Icefox rest day"
-                      />
+                          size={17}
+                          strokeWidth={2}
+                          fill="#ff174f"
+                          color="#ff174f"
+                          aria-label="Icefox rest day"
+                        />
                       ) : (
                         <div
                           className="seven-day-bar icefox-bar"
@@ -582,8 +641,118 @@ function Dashboard({
           </div>
         </section>
 
-        {/* Shared monthly calendar */}
-        <MonthView refreshKey={monthRefreshKey} />
+        {/* Calendar and daily breakdown */}
+        <div className="dashboard-detail-grid">
+          <MonthView
+            refreshKey={monthRefreshKey}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
+
+          <div className="dashboard-right-column">
+            <section className="dashboard-card daily-breakdown-card">
+              <div className="daily-breakdown-heading">
+              <div>
+                <p className="card-label">DAILY BREAKDOWN</p>
+                <h2 className="section-title">
+                  {formatSelectedDate(selectedDate)}
+                </h2>
+              </div>
+            </div>
+
+            {monthError ? (
+              <p className="calendar-message" role="alert">
+                {monthError}
+              </p>
+            ) : !monthData ? (
+              <p className="daily-empty-message">
+                Loading daily activity...
+              </p>
+            ) : (
+              <div className="daily-breakdown-users">
+                {renderDailyBreakdown("Icefox")}
+                {renderDailyBreakdown("Damian")}
+              </div>
+            )}
+
+            </section>
+
+            <section className="dashboard-card weekly-summary-section">
+              <div className="weekly-summary-heading">
+                <p className="card-label">THIS WEEK</p>
+              </div>
+              <div className="weekly-comparison-grid">
+              {["Icefox", "Damian"].map((userName) => {
+            const weeklyData = data.week[userName];
+            const isExpanded = Boolean(expandedUsers[userName]);
+
+            return (
+              <div
+                className={`weekly-user weekly-user-column ${isExpanded ? "expanded" : ""}`}
+                key={userName}
+              >
+                <button
+                  type="button"
+                  className="user-total"
+                  onClick={() => toggleUser(userName)}
+                  aria-expanded={isExpanded}
+                  aria-controls={`weekly-breakdown-${userName.toLowerCase()}`}
+                >
+                  <span className="user-name">{userName}</span>
+
+                  <span className="user-total-value">
+                    <strong style={{ fontSize: "1.45rem" }}>
+                      {weeklyData?.total ?? 0}
+                    </strong>
+
+                    <span
+                      className={`expand-arrow ${
+                        isExpanded ? "expanded" : ""
+                      }`}
+                      aria-hidden="true"
+                    >
+                      ▶
+                    </span>
+                  </span>
+                </button>
+
+                <div
+                  className="pushup-breakdown"
+                  id={`weekly-breakdown-${userName.toLowerCase()}`}
+                  aria-hidden={!isExpanded}
+                >
+                  {(weeklyData?.total ?? 0) === 0 ? (
+                    <p className="no-pushups">
+                      No push-ups logged this week.
+                    </p>
+                  ) : (
+                    pushupTypes.map((type) => {
+                      const reps = weeklyData?.types?.[type] ?? 0;
+
+                      if (reps === 0) {
+                        return null;
+                      }
+
+                      return (
+                        <div
+                          className="pushup-breakdown-row"
+                          key={type}
+                        >
+                          <span>{type}</span>
+                          <strong>{reps}</strong>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
 
       {/* Logging modal */}

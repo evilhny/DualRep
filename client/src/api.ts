@@ -1,3 +1,4 @@
+
 /* =========================
    AUTHENTICATION
 ========================= */
@@ -221,11 +222,31 @@ export async function logPushupSets(sets: PushupSet[]) {
    MONTH VIEW
 ========================= */
 
+// Individual push-up set returned by the monthly API.
+export interface MonthSet {
+  id: number;
+  type: PushupType;
+  reps: number;
+}
+
+// Individual sets grouped by user for each calendar date.
+export interface MonthDailySets {
+  Damian: MonthSet[];
+  Icefox: MonthSet[];
+}
+
 export interface MonthData {
   year: number;
   month: number;
+
+  // Daily rep totals grouped by user and date.
   data: Record<string, Record<string, number>>;
+
+  // Manual rest days grouped by user.
   restDays: Record<string, string[]>;
+
+  // Individual sets grouped by date and user.
+  sets: Record<string, MonthDailySets>;
 }
 
 export async function getMonth(

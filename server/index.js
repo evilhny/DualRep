@@ -1063,7 +1063,7 @@ app.get("/api/month", requireAuth, async (req, res) => {
 
   const endDate = getNextMonthDate(year, month);
 
-  const [pushupResult, restDayResult] = await Promise.all([
+  const [pushupResult, restDayResult, setsResult] = await Promise.all([
     db.query(
       `SELECT
          "user",
@@ -1085,6 +1085,20 @@ app.get("/api/month", requireAuth, async (req, res) => {
        WHERE rest_date >= $1
          AND rest_date < $2
        ORDER BY rest_date ASC`,
+      [startDate, endDate]
+    ),
+
+    db.query(
+      `SELECT
+         id,
+         "user",
+         type,
+         reps,
+         (created_at AT TIME ZONE 'Asia/Kolkata')::date::text AS day
+       FROM pushup_sets
+       WHERE (created_at AT TIME ZONE 'Asia/Kolkata')::date >= $1::date
+         AND (created_at AT TIME ZONE 'Asia/Kolkata')::date < $2::date
+       ORDER BY created_at ASC, id ASC`,
       [startDate, endDate]
     ),
   ]);
@@ -1111,11 +1125,31 @@ app.get("/api/month", requireAuth, async (req, res) => {
     }
   }
 
+  const sets = {};
+
+  for (const row of setsResult.rows) {
+    if (!sets[row.day]) {
+      sets[row.day] = {
+        Damian: [],
+        Icefox: [],
+      };
+    }
+
+    if (sets[row.day][row.user]) {
+      sets[row.day][row.user].push({
+        id: row.id,
+        type: row.type,
+        reps: Number(row.reps),
+      });
+    }
+  }
+
   return res.json({
     year,
     month,
     data,
     restDays,
+    sets,
   });
 });
 

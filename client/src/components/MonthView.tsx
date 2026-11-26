@@ -6,11 +6,17 @@ import { getMonth, type MonthData } from "../api";
 
 interface MonthViewProps {
   refreshKey: number;
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
 }
 
 type MonthDirection = "next" | "previous";
 
-function MonthView({ refreshKey }: MonthViewProps) {
+function MonthView({
+  refreshKey,
+  selectedDate,
+  onSelectDate,
+}: MonthViewProps) {
   const today = new Date();
 
   const [year, setYear] = useState(today.getFullYear());
@@ -148,6 +154,7 @@ function MonthView({ refreshKey }: MonthViewProps) {
           }
 
           const dateKey = getDateKey(day);
+
           const icefoxTotal = data?.data.Icefox?.[dateKey] ?? 0;
           const damianTotal = data?.data.Damian?.[dateKey] ?? 0;
 
@@ -168,24 +175,31 @@ function MonthView({ refreshKey }: MonthViewProps) {
             today.getMonth() + 1 === month &&
             today.getDate() === day;
 
+          const isSelected = selectedDate === dateKey;
+
           const tooltip = [
             `Icefox: ${icefoxRestDay ? "Rest day" : `${icefoxTotal} reps`}`,
             `Damian: ${damianRestDay ? "Rest day" : `${damianTotal} reps`}`,
           ].join(" | ");
 
           return (
-            <div
+            <button
+              type="button"
               className={[
                 "calendar-day",
                 hasActivity ? "active" : "",
                 icefoxRestDay || damianRestDay ? "rest-day" : "",
                 isToday ? "today" : "",
+                isSelected ? "selected" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
               key={day}
               style={animationStyle}
               title={tooltip}
+              onClick={() => onSelectDate(dateKey)}
+              aria-label={`${dateKey}. ${tooltip}`}
+              aria-pressed={isSelected}
             >
               <span className="day-number">{day}</span>
 
@@ -214,7 +228,7 @@ function MonthView({ refreshKey }: MonthViewProps) {
                   )
                 )}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

@@ -975,3 +975,682 @@ body::before {
   -webkit-box-shadow: 0 0 0 1000px #141414 inset;
   caret-color: #ffdfb9;
 }
+
+
+/* ========================================
+   DUALREP — DASHBOARD REDESIGN
+   Calendar + Daily Breakdown
+======================================== */
+
+/* Three overview cards across the desktop layout */
+.dashboard {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 1200px;
+  gap: 16px;
+}
+
+/* Header and page title span all columns */
+.dashboard-header,
+.dashboard-heading {
+  grid-column: 1 / -1;
+}
+
+/* Overview cards */
+.streak-card,
+.dashboard > .dashboard-card:not(.seven-day-card) {
+  min-width: 0;
+}
+
+/* Last 7 days overview */
+.seven-day-card {
+  grid-column: auto;
+  min-width: 0;
+}
+
+/* Keep the chart usable in the narrower overview card */
+.seven-day-header {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.seven-day-legend {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seven-day-chart {
+  height: 150px;
+  gap: 5px;
+}
+
+.seven-day-bars {
+  height: 115px;
+  gap: 3px;
+}
+
+.seven-day-bar {
+  width: 35%;
+}
+
+.seven-day-footer {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.seven-day-totals {
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Calendar and daily breakdown container */
+.dashboard-detail-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  align-items: start;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Calendar belongs to the detail grid now */
+.dashboard-detail-grid .month-view {
+  grid-column: auto;
+  grid-row: auto;
+  align-self: start;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+/* Selected calendar date */
+.calendar-day {
+  width: 100%;
+  padding: 0;
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.calendar-day.selected {
+  background: rgba(164, 25, 61, 0.28);
+  border: 1px solid #c0184a;
+  color: #ffdfb9;
+  box-shadow: 0 0 0 2px rgba(164, 25, 61, 0.12);
+}
+
+.calendar-day.selected.today {
+  outline: 2px solid #ffdfb9;
+  outline-offset: -3px;
+}
+
+.calendar-day:focus-visible {
+  outline: 2px solid #ffdfb9;
+  outline-offset: 2px;
+  z-index: 1;
+}
+
+.calendar-day:not(.calendar-empty):hover {
+  background-color: rgba(164, 25, 61, 0.2);
+  border-color: rgba(192, 24, 74, 0.5);
+}
+
+/* Daily breakdown card */
+.daily-breakdown-card {
+  min-width: 0;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.daily-breakdown-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 223, 185, 0.1);
+}
+
+.daily-breakdown-heading .card-label {
+  margin-bottom: 9px;
+}
+
+.daily-breakdown-heading .section-title {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* Individual user sections */
+.daily-breakdown-users {
+  display: flex;
+  flex-direction: column;
+}
+
+.daily-user-breakdown {
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255, 223, 185, 0.1);
+}
+
+.daily-user-breakdown:last-child {
+  border-bottom: none;
+  padding-bottom: 4px;
+}
+
+.daily-user-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.daily-user-identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.daily-user-identity h3 {
+  margin: 0;
+  color: #ffdfb9;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.daily-user-total {
+  color: #ffdfb9;
+  font-size: 1.15rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.daily-user-total span {
+  color: rgba(255, 223, 185, 0.5);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* Individual logged sets */
+.daily-set-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.daily-set-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 223, 185, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 223, 185, 0.045);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.daily-set-pill:hover {
+  background: rgba(164, 25, 61, 0.12);
+  border-color: rgba(164, 25, 61, 0.45);
+  transform: translateY(-1px);
+}
+
+.daily-set-type {
+  color: rgba(255, 223, 185, 0.7);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.daily-set-pill strong {
+  color: #ffdfb9;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+/* Empty and rest-day states */
+.daily-empty-message {
+  margin: 0;
+  color: rgba(255, 223, 185, 0.42);
+  font-size: 0.8rem;
+}
+
+.daily-rest-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: rgba(255, 223, 185, 0.7);
+  font-size: 0.82rem;
+}
+
+.daily-rest-message svg {
+  color: #a4193d;
+}
+
+/* ========================================
+   TABLET
+======================================== */
+
+@media (max-width: 900px) {
+  .dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 760px;
+  }
+
+  .dashboard-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-detail-grid .month-view {
+    margin: 0;
+  }
+
+  .seven-day-card {
+    grid-column: 1 / -1;
+  }
+
+  .seven-day-header {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .seven-day-chart {
+    height: 180px;
+  }
+
+  .seven-day-bars {
+    height: 145px;
+  }
+
+  .seven-day-footer {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .seven-day-totals {
+    width: auto;
+  }
+}
+
+/* ========================================
+   MOBILE
+======================================== */
+
+@media (max-width: 620px) {
+  .dashboard {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 520px;
+    gap: 12px;
+  }
+
+  .dashboard-header,
+  .dashboard-heading,
+  .streak-card,
+  .dashboard > .dashboard-card,
+  .dashboard-detail-grid {
+    grid-column: 1;
+  }
+
+  .dashboard-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .dashboard-detail-grid .month-view {
+    margin: 0;
+    padding: 19px 14px;
+  }
+
+  .daily-breakdown-card {
+    padding: 19px 20px;
+  }
+
+  .seven-day-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .seven-day-chart {
+    height: 180px;
+    gap: 4px;
+  }
+
+  .seven-day-bars {
+    height: 145px;
+    gap: 3px;
+  }
+
+  .seven-day-bar {
+    width: 30%;
+  }
+
+  .seven-day-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .seven-day-totals {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .daily-breakdown-heading .section-title {
+    font-size: 0.95rem;
+  }
+}
+
+/* Smaller phones */
+@media (max-width: 370px) {
+  .daily-set-list {
+    gap: 6px;
+  }
+
+  .daily-set-pill {
+    gap: 8px;
+    padding: 7px 9px;
+  }
+
+  .calendar-legend {
+    gap: 12px;
+    font-size: 0.75rem;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .daily-set-pill {
+    transition: none;
+  }
+}
+
+
+/* ========================================
+   CURRENT STREAK + THIS WEEK REFINEMENTS
+======================================== */
+
+.streak-card,
+.weekly-card {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Centre streak and its actions in the available space */
+.streak-content {
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 12px 0;
+}
+
+.streak strong {
+  font-size: 2.2rem;
+}
+
+.streak-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.streak-log-button,
+.rest-day-button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rest-day-button {
+  border: 1px solid rgba(255, 223, 185, 0.2);
+  background: rgba(255, 223, 185, 0.06);
+  color: #ffdfb9;
+  cursor: pointer;
+}
+
+.rest-day-button:hover:not(:disabled) {
+  border-color: #a4193d;
+  background: rgba(164, 25, 61, 0.18);
+}
+
+.rest-day-button.active {
+  border-color: #a4193d;
+  background: rgba(164, 25, 61, 0.22);
+  color: #ffdfb9;
+}
+
+.rest-day-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.card-description {
+  margin-top: 0;
+  text-align: center;
+  font-size: 0.75rem;
+}
+
+/* Centre weekly totals while retaining expandable breakdowns */
+.weekly-card > .weekly-user {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.weekly-card .user-total {
+  padding: 17px 0;
+}
+
+.weekly-card .user-total-value strong {
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.weekly-card .user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Keep the existing compact layout on smaller screens */
+@media (max-width: 620px) {
+  .streak-card,
+  .weekly-card {
+    min-height: 205px;
+  }
+
+  .streak-content {
+    gap: 14px;
+  }
+}
+
+@media (max-width: 370px) {
+  .streak-content {
+    align-items: center;
+    flex-direction: column;
+  }
+
+  .streak-actions {
+    width: 100%;
+  }
+
+  .streak-log-button,
+  .rest-day-button {
+    padding: 10px;
+  }
+}
+
+/* Give the This Week card a more balanced vertical layout */
+.dashboard-card:has(> .weekly-user) {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-card:has(> .weekly-user) > .weekly-user {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dashboard-card:has(> .weekly-user) .user-total {
+  padding: 22px 0;
+}
+
+/* Give the This Week card a more balanced vertical layout */
+.dashboard-card:has(> .weekly-user) {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-card:has(> .weekly-user) > .weekly-user {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dashboard-card:has(> .weekly-user) .user-total {
+  padding: 22px 0;
+}
+/* ========================================
+   DASHBOARD LAYOUT FIXES
+======================================== */
+
+/* On desktop, Last 7 days occupies the remaining two overview columns. */
+@media (min-width: 901px) {
+  .dashboard > .seven-day-card {
+    grid-column: span 2;
+  }
+}
+
+/* Keep the chart full-width on tablet, where the dashboard has two columns. */
+@media (min-width: 621px) and (max-width: 900px) {
+  .dashboard > .seven-day-card {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Keep the chart in the single-column mobile flow. */
+@media (max-width: 620px) {
+  .dashboard > .seven-day-card {
+    grid-column: 1;
+  }
+}
+
+/* Add breathing room between weekly breakdown counts and the card edge. */
+.weekly-user-column .pushup-breakdown-row {
+  padding-right: 12px;
+}
+
+
+/* ========================================
+   SEPARATE DAILY BREAKDOWN AND THIS WEEK CARDS
+======================================== */
+
+.dashboard-right-column {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dashboard-right-column > .dashboard-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.weekly-summary-section {
+  margin: 0;
+  padding: 20px;
+  border: 1px solid rgba(255, 223, 185, 0.12);
+  border-radius: 18px;
+  background: rgba(17, 15, 16, 0.88);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+}
+
+.weekly-summary-heading {
+  margin: 0 0 14px;
+}
+
+.weekly-summary-section .weekly-comparison-grid {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .dashboard-right-column {
+    gap: 12px;
+  }
+}
+
+
+/* ========================================
+   BALANCED HEIGHT: CALENDAR + RIGHT-HAND CARDS
+======================================== */
+
+/* The calendar determines the detail row height; the right column fills it. */
+.dashboard-detail-grid {
+  align-items: stretch;
+}
+
+.dashboard-detail-grid > .month-view {
+  align-self: stretch;
+  height: 100%;
+}
+
+.dashboard-right-column {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  align-self: stretch;
+  min-height: 0;
+  height: 100%;
+}
+
+.dashboard-right-column > .dashboard-card {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Return to natural content heights when the layout becomes single-column. */
+@media (max-width: 900px) {
+  .dashboard-detail-grid {
+    align-items: start;
+  }
+
+  .dashboard-detail-grid > .month-view {
+    height: auto;
+  }
+
+  .dashboard-right-column {
+    display: flex;
+    height: auto;
+  }
+
+  .dashboard-right-column > .dashboard-card {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+}
