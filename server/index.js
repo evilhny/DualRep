@@ -9,6 +9,7 @@ const {
   setSessionCookie,
   clearSessionCookie,
   requireAuth,
+  cleanupExpiredSessions,
   destroySession,
 } = require("./auth");
 
@@ -1150,6 +1151,26 @@ app.get("/{*path}", (req, res) => {
    SERVER STARTUP
 ========================= */
 
+const SESSION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+async function runSessionCleanup() {
+  try {
+    const deleted = await cleanupExpiredSessions();
+    console.log(`[Sessions] Expiry cleanup completed. Deleted ${deleted} expired session(s).`);
+  } catch (error) {
+    console.error("[Sessions] Expiry cleanup failed:", error);
+  }
+}
+
+// Run once at startup, then every 24 hours.
+runSessionCleanup();
+
+const sessionCleanupTimer = setInterval(
+  runSessionCleanup,
+  SESSION_CLEANUP_INTERVAL_MS
+);
+sessionCleanupTimer.unref();
+
 const server = app.listen(PORT, "127.0.0.1", () => {
   console.log(`DualRep running at http://127.0.0.1:${PORT}`);
   startDiscordReminders();
@@ -1161,6 +1182,7 @@ const server = app.listen(PORT, "127.0.0.1", () => {
 
 async function shutdown(signal) {
   console.log(`[Server] ${signal} received. Shutting down...`);
+  clearInterval(sessionCleanupTimer);
 
   server.close(async () => {
     try {
