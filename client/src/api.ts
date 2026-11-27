@@ -138,11 +138,25 @@ export interface DailyRepData {
   };
 }
 
+// All-time personal records for the authenticated user.
+export interface PersonalBests {
+  daily: {
+    reps: number;
+    date: string | null;
+  };
+  weekly: {
+    reps: number;
+    startDate: string | null;
+    endDate: string | null;
+  };
+}
+
 export interface DashboardData {
   today: Record<string, number>;
   week: Record<string, WeeklyUserData>;
   streaks: Record<string, number>;
   last7Days: DailyRepData[];
+  personalBests: PersonalBests;
 }
 
 export async function getDashboard(): Promise<DashboardData> {

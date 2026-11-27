@@ -1654,3 +1654,432 @@ body::before {
     overflow: visible;
   }
 }
+
+/* Fix: SVG line chart must use the full chart container width */
+.seven-day-chart {
+  display: block !important;
+  width: 100%;
+  height: auto !important;
+  min-width: 0;
+  padding: 8px 0 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.seven-day-chart > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+
+/* ========================================
+   DUALREP — DASHBOARD LAYOUT FIX
+======================================== */
+
+.dashboard {
+  grid-template-columns: minmax(250px, 0.9fr) minmax(0, 1.8fr);
+  max-width: 1200px;
+  gap: 16px;
+}
+
+.dashboard-header,
+.dashboard-heading,
+.dashboard-detail-grid {
+  grid-column: 1 / -1;
+}
+
+.streak-card {
+  grid-column: 1;
+}
+
+.seven-day-card {
+  grid-column: 2;
+}
+
+.personal-bests-card {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.personal-bests-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.seven-day-header {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.seven-day-chart {
+  display: block !important;
+  width: 100%;
+  height: auto !important;
+  min-width: 0;
+  padding: 8px 0 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.seven-day-chart > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+
+.seven-day-footer {
+  align-items: center;
+  flex-direction: row;
+}
+
+.seven-day-totals {
+  width: auto;
+  justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+  .dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .streak-card,
+  .seven-day-card,
+  .personal-bests-card,
+  .dashboard-detail-grid {
+    grid-column: 1;
+  }
+
+  .personal-bests-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .seven-day-header {
+    flex-direction: column;
+  }
+
+  .seven-day-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .seven-day-totals {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+
+/* ========================================
+   DUALREP — FINAL DASHBOARD LAYOUT
+   Matches the compact dashboard mockup
+======================================== */
+
+@media (min-width: 901px) {
+  .dashboard {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 1100px;
+    align-items: stretch;
+  }
+
+  .dashboard-header,
+  .dashboard-heading {
+    grid-column: 1 / -1;
+  }
+
+  /* Top row */
+  .streak-card {
+    grid-column: 1;
+    grid-row: 3;
+    min-height: 200px !important;
+  }
+
+  .seven-day-card {
+    grid-column: 2;
+    grid-row: 3;
+    min-width: 0;
+  }
+
+  /* Lower row */
+  .dashboard-detail-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    align-items: stretch;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .dashboard-detail-grid > .month-view {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 0;
+  }
+
+  /* Three naturally sized cards in the right column */
+  .dashboard-right-column {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    gap: 12px;
+    height: auto;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .dashboard-right-column > .dashboard-card {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  /* Compact personal-best cards */
+  .personal-bests-card {
+    display: block;
+    grid-column: auto;
+    padding: 16px;
+  }
+
+  .personal-bests-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .personal-best-item {
+    min-width: 0;
+    padding: 12px !important;
+  }
+
+  /* Keep the chart responsive */
+  .seven-day-chart {
+    display: block !important;
+    width: 100%;
+    height: auto !important;
+    min-width: 0;
+    padding: 8px 0 0;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .seven-day-chart > svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* Tablet */
+@media (min-width: 621px) and (max-width: 900px) {
+  .dashboard {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    max-width: 760px;
+  }
+
+  .streak-card {
+    grid-column: 1;
+  }
+
+  .seven-day-card {
+    grid-column: 2;
+  }
+
+  .dashboard-detail-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .dashboard-right-column {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 12px;
+  }
+
+  .dashboard-right-column > .dashboard-card {
+    height: auto;
+    overflow: visible;
+  }
+
+  .personal-bests-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Mobile */
+@media (max-width: 620px) {
+  .dashboard {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    max-width: 600px;
+  }
+
+  .streak-card,
+  .seven-day-card,
+  .dashboard-detail-grid {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .dashboard-detail-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .dashboard-detail-grid > .month-view {
+    width: 100%;
+    height: auto;
+  }
+
+  .dashboard-right-column {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 12px;
+  }
+
+  .dashboard-right-column > .dashboard-card {
+    height: auto;
+    overflow: visible;
+  }
+
+  .personal-bests-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .seven-day-header {
+    flex-direction: column;
+  }
+
+  .seven-day-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .seven-day-totals {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+
+/* ========================================
+   BALANCED RIGHT COLUMN — DAILY + PB
+======================================== */
+
+@media (min-width: 901px) {
+  .dashboard-detail-grid {
+    align-items: stretch;
+  }
+
+  .dashboard-detail-grid > .month-view {
+    height: 100%;
+    align-self: stretch;
+  }
+
+  .dashboard-right-column {
+    display: grid;
+    grid-template-rows: 0.95fr 1.05fr;
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+    gap: 12px;
+  }
+
+  .dashboard-right-column > .daily-breakdown-card,
+  .dashboard-right-column > .personal-bests-card {
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  /* Daily Breakdown: reduce vertical spacing */
+  .daily-breakdown-card {
+    padding: 16px !important;
+  }
+
+  .daily-breakdown-heading {
+    padding-bottom: 10px;
+  }
+
+  .daily-breakdown-heading .card-label {
+    margin-bottom: 6px;
+  }
+
+  .daily-user-breakdown {
+    padding: 10px 0;
+  }
+
+  .daily-user-header {
+    margin-bottom: 8px;
+  }
+
+  /* Personal Bests: use the extra available height */
+  .personal-bests-card {
+    padding: 20px !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .personal-bests-heading {
+    margin-bottom: 12px;
+  }
+
+  .personal-bests-grid {
+    flex: 1;
+    align-items: stretch;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px !important;
+  }
+
+  .personal-best-item {
+    height: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 20px !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+/* Tablet and mobile */
+@media (max-width: 900px) {
+  .dashboard-right-column {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+
+  .dashboard-right-column > .dashboard-card {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .personal-bests-grid {
+    flex: initial;
+  }
+
+  .personal-best-item {
+    height: auto;
+  }
+}
+

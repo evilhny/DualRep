@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const { Agent, setGlobalDispatcher } = require("undici");
@@ -1031,11 +1030,68 @@ app.get("/api/dashboard", requireAuth, async (req, res) => {
     dailyTotals.push(day);
   }
 
+  // All-time personal bests for the authenticated user.
+  // Dates are derived in IST so daily and weekly boundaries match the dashboard.
+  const personalBestResult = await db.query(
+    `WITH daily_totals AS (
+       SELECT
+         (created_at AT TIME ZONE 'Asia/Kolkata')::date AS activity_date,
+         SUM(reps)::bigint AS total_reps
+       FROM pushup_sets
+       WHERE "user" = $1
+       GROUP BY (created_at AT TIME ZONE 'Asia/Kolkata')::date
+     ),
+     weekly_totals AS (
+       SELECT
+         DATE_TRUNC('week', activity_date)::date AS week_start,
+         (DATE_TRUNC('week', activity_date)::date + 6) AS week_end,
+         SUM(total_reps)::bigint AS total_reps
+       FROM daily_totals
+       GROUP BY DATE_TRUNC('week', activity_date)::date
+     )
+     SELECT
+       (
+         SELECT json_build_object(
+           'reps', total_reps,
+           'date', activity_date::text
+         )
+         FROM daily_totals
+         ORDER BY total_reps DESC, activity_date ASC
+         LIMIT 1
+       ) AS best_daily,
+       (
+         SELECT json_build_object(
+           'reps', total_reps,
+           'startDate', week_start::text,
+           'endDate', week_end::text
+         )
+         FROM weekly_totals
+         ORDER BY total_reps DESC, week_start ASC
+         LIMIT 1
+       ) AS best_weekly`,
+    [req.user.username]
+  );
+
+  const personalBestRow = personalBestResult.rows[0] || {};
+
+  const personalBests = {
+    daily: personalBestRow.best_daily || {
+      reps: 0,
+      date: null,
+    },
+    weekly: personalBestRow.best_weekly || {
+      reps: 0,
+      startDate: null,
+      endDate: null,
+    },
+  };
+
   return res.json({
     today,
     week,
     streaks,
     last7Days: dailyTotals,
+    personalBests,
   });
 });
 
